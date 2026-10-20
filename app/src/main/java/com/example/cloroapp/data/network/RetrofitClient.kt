@@ -6,7 +6,7 @@ import retrofit2.create
 
 object RetrofitClient {
     // Esto es el tunel hacia el localhost que se emule en el PC
-    private const val BASE_URL = "http://10.0.2.2:8000/"
+    private const val BASE_URL = "http://127.0.0.1:8000/"
     val apiService: CloroApiService by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
