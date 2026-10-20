@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 app = FastAPI(title="API CloroApp")
@@ -9,7 +9,7 @@ class MedicionCloro(BaseModel):
     id_galpon: str
     nivel_cloro: float
     estado: str
-    fecha_hora: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S") # esto en caso de que el celu no mande fecha
+    fecha_hora: str = Field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S")) # esto en caso de que el celu no mande fecha, tmb para q se renueve el registro
 
 # Aca simularemos la abse de datos (que seria un array simple jeje)
 base_datos_mediciones = []
