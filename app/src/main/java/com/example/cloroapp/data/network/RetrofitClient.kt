@@ -1,16 +1,27 @@
 package com.example.cloroapp.data.network
 
+import java.util.concurrent.TimeUnit
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.create
+
 
 object RetrofitClient {
     // Esto es el tunel hacia el localhost que se emule en el PC
-    private const val BASE_URL = "http://127.0.0.1:8000/"
+    const val BASE_URL = "https://cloroapp-api.onrender.com/"
+
+    // Cliente HTTP con paciencia de 60s para cuando Render despierta
+    val cliente = OkHttpClient.Builder()
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .build()
+
     val apiService: CloroApiService by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
-            // LO DE ABAJO ES EL PROCESO A JSON
+            .client(cliente)
+            // Convierte el JSON de la API a objetos Kotlin
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(CloroApiService::class.java)
