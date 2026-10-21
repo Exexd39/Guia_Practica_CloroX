@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.cloroapp.data.DatosFalsos
+import com.example.cloroapp.ui.navigation.AppNavigation
 import com.example.cloroapp.ui.screen.DashboardScreen
 import com.example.cloroapp.ui.theme.CloroAppTheme
 
@@ -21,7 +22,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             CloroAppTheme {
-                DashboardScreen(granjas = DatosFalsos.granjas)
+                AppNavigation()
             }
         }
     }
