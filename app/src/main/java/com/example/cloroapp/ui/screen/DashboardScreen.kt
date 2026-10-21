@@ -20,6 +20,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,7 +40,8 @@ import com.example.cloroapp.ui.theme.TextoSecundario
 @Composable
 fun DashboardScreen(
     granjas: List<Granja>,
-    onGranjaClick: (Granja) -> Unit = {}
+    onGranjaClick: (Granja) -> Unit = {},
+    onAlertasClick: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -47,11 +49,20 @@ fun DashboardScreen(
             .background(FondoClaro)
             .padding(16.dp)
     ) {
-        Text(
-            text = "Granjas",
-            style = MaterialTheme.typography.headlineMedium,
-            color = TextoOscuro
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Granjas",
+                style = MaterialTheme.typography.headlineMedium,
+                color = TextoOscuro,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = onAlertasClick) {
+                Text("Alertas", color = EstadoCritico)
+            }
+        }
         Spacer(modifier = Modifier.height(16.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -19,3 +19,13 @@ data class Granja(
     val estadoGeneral: EstadoCloro
         get() = puntos.maxByOrNull { it.estado.ordinal }?.estado ?: EstadoCloro.NORMAL
 }
+enum class Rol(val nombre: String, val descripcion: String) {
+    OPERARIO("Operario", "Consulta niveles y registra controles"),
+    SUPERVISOR("Supervisor", "Monitorea puntos, alertas y desviaciones"),
+    JEFATURA("Jefatura", "Consulta resumen e históricos")
+}
+
+// Guarda el perfil que inició sesión (simulado)
+object SesionActual {
+    var rol: Rol = Rol.OPERARIO
+}

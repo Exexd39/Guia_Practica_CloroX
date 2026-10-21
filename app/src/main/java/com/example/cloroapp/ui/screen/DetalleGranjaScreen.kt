@@ -29,7 +29,11 @@ import com.example.cloroapp.ui.theme.TextoOscuro
 import com.example.cloroapp.ui.theme.TextoSecundario
 
 @Composable
-fun DetalleGranjaScreen(granja: Granja, onVolver: () -> Unit) {
+fun DetalleGranjaScreen(
+    granja: Granja,
+    onVolver: () -> Unit,
+    onPuntoClick: (PuntoMedicion) -> Unit = {}
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -54,17 +58,18 @@ fun DetalleGranjaScreen(granja: Granja, onVolver: () -> Unit) {
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(granja.puntos) { punto ->
-                PuntoCard(punto = punto)
+                PuntoCard(punto = punto, onClick = { onPuntoClick(punto) })
             }
         }
     }
 }
 
 @Composable
-fun PuntoCard(punto: PuntoMedicion) {
+fun PuntoCard(punto: PuntoMedicion, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Blanco)
+        colors = CardDefaults.cardColors(containerColor = Blanco),
+        onClick = onClick
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
