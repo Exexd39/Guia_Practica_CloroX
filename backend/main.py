@@ -1,16 +1,16 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from datetime import datetime
 
 app = FastAPI(title="API CloroApp")
 
 # Rangos que se ocuparan para mediciones en ppm de cloro
-CRITICO_MIN = 0.5
-NORMAL_MIN = 1.0
-NORMAL_MAX = 3.0
-CRITICO_MAX = 5.0
+CRITICO_MIN = 2.0
+NORMAL_MIN = 3.0
+NORMAL_MAX = 5.0
+CRITICO_MAX = 6.0
 
-# funcion que calculara el estado de ppm
+# FUNCIONES
 def calcular_estado(cloro: float) -> str:
     if cloro < CRITICO_MIN or cloro > CRITICO_MAX:
         return "critico"
@@ -18,13 +18,20 @@ def calcular_estado(cloro: float) -> str:
         return "normal"
     return "advertencia"
 
+def buscar_punto(id_punto: str):
+    for punto in puntos_medicion:
+        if punto["id"] == id_punto:
+            return punto
+    return None
+
 # Clase para medicion
 class MedicionEntrada(BaseModel):
-    id_galpon: str
+    id_punto: str
     nivel_cloro: float = Field(ge=0, le=20)
 
 # Este sera el modelo de datos, para la medicion de cloro, etc
 class MedicionCloro(BaseModel):
+    id_punto: str
     id_galpon: str
     nivel_cloro: float
     estado: str
@@ -39,25 +46,41 @@ granjas_disponibles = [
     {"id": "G2", "nombre": "Galpón 2 - Sector Sur"}
 ]
 
-# Aqui van todas las rutas
+puntos_medicion = [
+    {"id": "G1-BEB", "id_galpon": "G1", "nombre": "Bebedero"},
+    {"id": "G1-TAN", "id_galpon": "G1", "nombre": "Tanque"},
+    {"id": "G2-BEB", "id_galpon": "G2", "nombre": "Bebedero"},
+    {"id": "G2-TAN", "id_galpon": "G2", "nombre": "Tanque"},
+]
+
+# Aqui van todas las rutas #
 # GET
 @app.get("/")
 def leer_raiz():
     return {"mensaje": "Bienvenido a la Api de CloroApp, ojala funcione jeje"}
 
-@app.get("/granjas")
-def obtener_granjas():
-    return granjas_disponibles
+@app.get("/puntos")
+def obtener_puntos(id_galpon: str | None = None):
+    if id_galpon is None:
+        return puntos_medicion
+    return [p for p in puntos_medicion if p["id_galpon"] == id_galpon]
 
-@app.get("/mediciones")
-def obtener_todas_mediciones():
-    return base_datos_mediciones
+@app.get("/puntos/{id_punto}/mediciones")
+def mediciones_de_punto(id_punto: str):
+    if buscar_punto(id_punto) is None:
+        raise HTTPException(status_code=404, detail="El punto de medicion no existe")
+    return [m for m in base_datos_mediciones if m["id_punto"] == id_punto]
 
 # POST
 @app.post("/mediciones")
 def registrar_medicion(entrada: MedicionEntrada):
+    punto = buscar_punto(entrada.id_punto)
+    if punto is None:
+        raise HTTPException(status_code=404, detail="El punto de medición no existe")
+
     medicion = MedicionCloro(
-        id_galpon=entrada.id_galpon,
+        id_punto=entrada.id_punto,
+        id_galpon=punto["id_galpon"],
         nivel_cloro=entrada.nivel_cloro,
         estado=calcular_estado(entrada.nivel_cloro),
         fecha_hora=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
