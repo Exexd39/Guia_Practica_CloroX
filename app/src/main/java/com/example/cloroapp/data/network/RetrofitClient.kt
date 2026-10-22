@@ -7,7 +7,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 
 object RetrofitClient {
-    // Esto es el tunel hacia el localhost que se emule en el PC
+    // Aqui ya se ocupa Render para la pagina y todo eso
     const val BASE_URL = "https://cloroapp-api.onrender.com/"
 
     // Cliente HTTP con paciencia de 60s para cuando Render despierta
