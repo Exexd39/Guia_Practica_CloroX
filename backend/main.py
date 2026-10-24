@@ -41,23 +41,54 @@ class MedicionCloro(BaseModel):
 # Aca simularemos la abse de datos (que seria un array simple jeje)
 base_datos_mediciones = []
 
-granjas_disponibles = [
-    {"id": "G1", "nombre": "Galpón 1 - Sector Norte"},
-    {"id": "G2", "nombre": "Galpón 2 - Sector Sur"}
+granjas = [
+    {"id": "GR1", "nombre": "Granja Los Aromos"},
+    {"id": "GR2", "nombre": "Granja El Roble"},
+    {"id": "GR3", "nombre": "Granja La Vega"},
+]
+
+galpones = [
+    {"id": "GR1-G1", "id_granja": "GR1", "nombre": "Galpón 1 - Sector Norte"},
+    {"id": "GR1-G2", "id_granja": "GR1", "nombre": "Galpón 2 - Sector Sur"},
+    {"id": "GR2-G1", "id_granja": "GR2", "nombre": "Galpón 1 - Sector Norte"},
+    {"id": "GR2-G2", "id_granja": "GR2", "nombre": "Galpón 2 - Sector Sur"},
+    {"id": "GR3-G1", "id_granja": "GR3", "nombre": "Galpón 1 - Sector Norte"},
+    {"id": "GR3-G2", "id_granja": "GR3", "nombre": "Galpón 2 - Sector Sur"},
+]
+
+TIPOS_PUNTO = [
+    ("BEB", "Bebedero", "bebedero", "Extremo de la línea de bebederos"),
+    ("TAN", "Tanque", "tanque", "Tanque de agua del galpón"),
 ]
 
 puntos_medicion = [
-    {"id": "G1-BEB", "id_galpon": "G1", "nombre": "Bebedero"},
-    {"id": "G1-TAN", "id_galpon": "G1", "nombre": "Tanque"},
-    {"id": "G2-BEB", "id_galpon": "G2", "nombre": "Bebedero"},
-    {"id": "G2-TAN", "id_galpon": "G2", "nombre": "Tanque"},
+    {
+        "id": f"{g['id']}-{codigo}",
+        "id_galpon": g["id"],
+        "nombre": nombre,
+        "tipo": tipo,
+        "ubicacion": ubicacion
+    }
+    for g in galpones
+    for codigo, nombre, tipo, ubicacion in TIPOS_PUNTO    
 ]
+
 
 # Aqui van todas las rutas #
 # GET
 @app.get("/")
 def leer_raiz():
     return {"mensaje": "Bienvenido a la Api de CloroApp, ojala funcione jeje"}
+
+@app.get("/granjas")
+def obtener_granjas():
+    return granjas
+
+@app.get("/galpones")
+def obtener_galpones(id_granja: str | None = None):
+    if id_granja is None:
+        return galpones
+    return [g for g in galpones if g["id_granja"] == id_granja]
 
 @app.get("/puntos")
 def obtener_puntos(id_galpon: str | None = None):
