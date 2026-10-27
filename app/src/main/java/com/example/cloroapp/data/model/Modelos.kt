@@ -65,8 +65,18 @@ enum class Rol(val nombre: String, val descripcion: String) {
 }
 
 // Guarda el perfil que inició sesión (simulado)
+data class Usuario(
+    val id: String,
+    val nombre: String,
+    val correo: String,
+    val clave: String,
+    val rol: Rol,
+    val granjasAsignadas: List<String>
+)
+
 object SesionActual {
-    var rol: Rol = Rol.OPERARIO
+    var usuario: Usuario? = null
+    val rol: Rol get() = usuario?.rol ?: Rol.OPERARIO
 }
 
 data class RegistroAccion(

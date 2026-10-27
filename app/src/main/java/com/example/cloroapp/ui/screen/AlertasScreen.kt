@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -19,15 +18,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.cloroapp.data.Permisos
+import com.example.cloroapp.data.RegistroAcciones
 import com.example.cloroapp.data.model.EstadoCloro
 import com.example.cloroapp.data.model.Granja
 import com.example.cloroapp.data.model.PuntoMedicion
+import com.example.cloroapp.data.model.Rol
+import com.example.cloroapp.data.model.TipoDesviacion
 import com.example.cloroapp.ui.theme.AzulPrincipal
 import com.example.cloroapp.ui.theme.Blanco
 import com.example.cloroapp.ui.theme.FondoClaro
@@ -37,15 +37,14 @@ import com.example.cloroapp.ui.theme.TextoSecundario
 @Composable
 fun AlertasScreen(
     granjas: List<Granja>,
+    rol: Rol,
     onRegistrarClick: (PuntoMedicion) -> Unit = {}
 ) {
     val alertas: List<Pair<Granja, PuntoMedicion>> = granjas.flatMap { granja ->
         granja.puntos
-            .filter { it.estado != EstadoCloro.NORMAL }
+            .filter { it.estado != EstadoCloro.NORMAL && !RegistroAcciones.estaCerrada(it.id) }
             .map { granja to it }
     }
-
-    val revisadas = remember { mutableStateListOf<String>() }
 
     Column(
         modifier = Modifier
@@ -59,7 +58,7 @@ fun AlertasScreen(
             color = TextoOscuro
         )
         Text(
-            text = "${alertas.size} puntos fuera de rango",
+            text = "${alertas.size} alertas abiertas",
             style = MaterialTheme.typography.bodyMedium,
             color = TextoSecundario
         )
@@ -75,7 +74,7 @@ fun AlertasScreen(
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(alertas) { (granja, punto) ->
-                val revisada = punto.id in revisadas
+                val tieneAccion = RegistroAcciones.tieneAcciones(punto.id)
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -90,7 +89,7 @@ fun AlertasScreen(
                                     color = TextoOscuro
                                 )
                                 Text(
-                                    text = "${"%.2f".format(punto.cloroLibre)} mg/L · ${punto.actualizado}",
+                                    text = "${"%.2f".format(punto.cloroLibre)} ppm · ${punto.hora}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = TextoSecundario
                                 )
@@ -102,27 +101,52 @@ fun AlertasScreen(
                             )
                         }
 
+                        val tipoDesviacion = when (punto.desviacion) {
+                            TipoDesviacion.INSUFICIENTE -> "Cloro insuficiente"
+                            TipoDesviacion.EXCESIVO -> "Cloro excesivo"
+                            TipoDesviacion.NINGUNA -> null
+                        }
+                        if (tipoDesviacion != null) {
+                            Text(
+                                text = tipoDesviacion,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextoSecundario
+                            )
+                        }
+
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (revisada) {
-                                Text(
-                                    text = "✓ Revisada",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = TextoSecundario,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            } else {
-                                Button(
-                                    onClick = { revisadas.add(punto.id) },
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text("Marcar como revisada")
+                            if (Permisos.puedeRegistrarAccion(rol)) {
+                                TextButton(onClick = { onRegistrarClick(punto) }) {
+                                    Text("Registrar acción", color = AzulPrincipal)
                                 }
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            TextButton(onClick = { onRegistrarClick(punto) }) {
-                                Text("Registrar acción", color = AzulPrincipal)
+
+                            Spacer(modifier = Modifier.weight(1f))
+
+                            if (Permisos.puedeCerrarAlerta(rol)) {
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Button(
+                                        onClick = { RegistroAcciones.cerrar(punto.id) },
+                                        enabled = tieneAccion
+                                    ) {
+                                        Text("Cerrar alerta")
+                                    }
+                                    if (!tieneAccion) {
+                                        Text(
+                                            text = "Requiere acción registrada",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = TextoSecundario
+                                        )
+                                    }
+                                }
+                            } else {
+                                Text(
+                                    text = if (tieneAccion) "Pendiente de cierre" else "Sin acción registrada",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = TextoSecundario
+                                )
                             }
                         }
                     }
