@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from datetime import datetime
+from uuid import uuid4
 
 app = FastAPI(title="API CloroApp")
 
@@ -18,6 +19,26 @@ def calcular_estado(cloro: float) -> str:
         return "normal"
     return "advertencia"
 
+FORMATO_FECHA = "%Y-%m-%d %H:%M:%S"
+
+def calcular_desviacion(cloro: float) -> str:
+    if cloro < NORMAL_MIN:
+        return "insuficiente"
+    if cloro > NORMAL_MAX:
+        return "excesivo"
+    return "ninguna"
+
+def normalizar_fecha(fecha: str | None) -> str:
+    if fecha is None:
+        return datetime.now().strftime(FORMATO_FECHA)
+    try:
+        return datetime.strptime(fecha, FORMATO_FECHA).strftime(FORMATO_FECHA)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail="fecha_hora debe tener formato AAAA-MM-DD HH:MM:SS"
+        )
+
 def buscar_punto(id_punto: str):
     for punto in puntos_medicion:
         if punto["id"] == id_punto:
@@ -27,18 +48,21 @@ def buscar_punto(id_punto: str):
 # Clase para medicion
 class MedicionEntrada(BaseModel):
     id_punto: str
-    nivel_cloro: float = Field(ge=0, le=20)
+    nivel_cloro: float = Field(ge=0, le=20),
+    fecha_hora: str | None = None
 
 # Este sera el modelo de datos, para la medicion de cloro, etc
 class MedicionCloro(BaseModel):
+    id: str
     id_punto: str
     id_galpon: str
     nivel_cloro: float
     estado: str
+    desviacion: str
     fecha_hora: str
 
 
-# Aca simularemos la abse de datos (que seria un array simple jeje)
+# Aca simularemos la abse de datos
 base_datos_mediciones = []
 
 granjas = [
@@ -96,6 +120,10 @@ def obtener_puntos(id_galpon: str | None = None):
         return puntos_medicion
     return [p for p in puntos_medicion if p["id_galpon"] == id_galpon]
 
+@app.get("/mediciones")
+def obtener_mediciones():
+    return base_datos_mediciones
+
 @app.get("/puntos/{id_punto}/mediciones")
 def mediciones_de_punto(id_punto: str):
     if buscar_punto(id_punto) is None:
@@ -109,12 +137,16 @@ def registrar_medicion(entrada: MedicionEntrada):
     if punto is None:
         raise HTTPException(status_code=404, detail="El punto de medición no existe")
 
+    nivel = round(entrada.nivel_cloro, 2)
+
     medicion = MedicionCloro(
+        id=str(uuid4()),
         id_punto=entrada.id_punto,
         id_galpon=punto["id_galpon"],
-        nivel_cloro=entrada.nivel_cloro,
-        estado=calcular_estado(entrada.nivel_cloro),
-        fecha_hora=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        nivel_cloro=nivel,
+        estado=calcular_estado(nivel),
+        desviacion=calcular_desviacion(nivel),
+        fecha_hora=normalizar_fecha(entrada.fecha_hora)
     )
     base_datos_mediciones.append(medicion.model_dump())
     return {"mensaje": "Medicion registrada exitosamente", "datos": medicion}
