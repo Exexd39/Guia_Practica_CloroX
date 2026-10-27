@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.cloroapp.data.model.EstadoCloro
 import com.example.cloroapp.data.model.Granja
+import com.example.cloroapp.data.model.SesionActual
 import com.example.cloroapp.ui.theme.Blanco
 import com.example.cloroapp.ui.theme.EstadoAdvertencia
 import com.example.cloroapp.ui.theme.EstadoCritico
@@ -40,8 +41,7 @@ import com.example.cloroapp.ui.theme.TextoSecundario
 @Composable
 fun DashboardScreen(
     granjas: List<Granja>,
-    onGranjaClick: (Granja) -> Unit = {},
-    onAlertasClick: () -> Unit = {}
+    onGranjaClick: (Granja) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -49,20 +49,16 @@ fun DashboardScreen(
             .background(FondoClaro)
             .padding(16.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Granjas",
-                style = MaterialTheme.typography.headlineMedium,
-                color = TextoOscuro,
-                modifier = Modifier.weight(1f)
-            )
-            TextButton(onClick = onAlertasClick) {
-                Text("Alertas", color = EstadoCritico)
-            }
-        }
+        Text(
+            text = "Granjas",
+            style = MaterialTheme.typography.headlineMedium,
+            color = TextoOscuro
+        )
+        Text(
+            text = "Sesión: ${SesionActual.rol.nombre}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextoSecundario
+        )
         Spacer(modifier = Modifier.height(16.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {

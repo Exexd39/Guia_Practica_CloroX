@@ -54,7 +54,7 @@ fun DetallePuntoScreen(granja: Granja, punto: PuntoMedicion, onVolver: () -> Uni
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "${"%.1f".format(punto.cloroLibre)} mg/L",
+            text = "${"%.2f".format(punto.cloroLibre)} mg/L",
             style = MaterialTheme.typography.displaySmall,
             color = punto.estado.color()
         )
@@ -84,9 +84,9 @@ fun DetallePuntoScreen(granja: Granja, punto: PuntoMedicion, onVolver: () -> Uni
                 Box(
                     modifier = Modifier
                         .width(24.dp)
-                        .height((valor * 90).dp)
+                        .height(((valor / 6.0) * 150).dp)
                         .background(
-                            DatosFalsos.clasificarCloro(valor).color(),
+                            punto.rango.clasificar(valor).color(),
                             RoundedCornerShape(4.dp)
                         )
                 )

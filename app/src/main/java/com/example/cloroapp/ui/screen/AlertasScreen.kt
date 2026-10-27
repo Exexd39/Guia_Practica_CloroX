@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -34,15 +35,16 @@ import com.example.cloroapp.ui.theme.TextoOscuro
 import com.example.cloroapp.ui.theme.TextoSecundario
 
 @Composable
-fun AlertasScreen(granjas: List<Granja>, onVolver: () -> Unit) {
-    // Solo puntos fuera de rango normal
+fun AlertasScreen(
+    granjas: List<Granja>,
+    onRegistrarClick: (PuntoMedicion) -> Unit = {}
+) {
     val alertas: List<Pair<Granja, PuntoMedicion>> = granjas.flatMap { granja ->
         granja.puntos
             .filter { it.estado != EstadoCloro.NORMAL }
             .map { granja to it }
     }
 
-    // Ids de alertas marcadas como revisadas (luego lo puede manejar el ViewModel)
     val revisadas = remember { mutableStateListOf<String>() }
 
     Column(
@@ -51,10 +53,6 @@ fun AlertasScreen(granjas: List<Granja>, onVolver: () -> Unit) {
             .background(FondoClaro)
             .padding(16.dp)
     ) {
-        TextButton(onClick = onVolver) {
-            Text("← Volver", color = AzulPrincipal)
-        }
-
         Text(
             text = "Alertas",
             style = MaterialTheme.typography.headlineMedium,
@@ -66,6 +64,14 @@ fun AlertasScreen(granjas: List<Granja>, onVolver: () -> Unit) {
             color = TextoSecundario
         )
         Spacer(modifier = Modifier.height(16.dp))
+
+        if (alertas.isEmpty()) {
+            Text(
+                text = "Sin alertas activas",
+                style = MaterialTheme.typography.bodyLarge,
+                color = TextoSecundario
+            )
+        }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(alertas) { (granja, punto) ->
@@ -84,7 +90,7 @@ fun AlertasScreen(granjas: List<Granja>, onVolver: () -> Unit) {
                                     color = TextoOscuro
                                 )
                                 Text(
-                                    text = "${"%.1f".format(punto.cloroLibre)} mg/L · ${punto.actualizado}",
+                                    text = "${"%.2f".format(punto.cloroLibre)} mg/L · ${punto.actualizado}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = TextoSecundario
                                 )
@@ -98,15 +104,25 @@ fun AlertasScreen(granjas: List<Granja>, onVolver: () -> Unit) {
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        if (revisada) {
-                            Text(
-                                text = "✓ Revisada",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = TextoSecundario
-                            )
-                        } else {
-                            Button(onClick = { revisadas.add(punto.id) }) {
-                                Text("Marcar como revisada")
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (revisada) {
+                                Text(
+                                    text = "✓ Revisada",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = TextoSecundario,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            } else {
+                                Button(
+                                    onClick = { revisadas.add(punto.id) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Marcar como revisada")
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            TextButton(onClick = { onRegistrarClick(punto) }) {
+                                Text("Registrar acción", color = AzulPrincipal)
                             }
                         }
                     }

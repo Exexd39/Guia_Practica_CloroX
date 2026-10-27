@@ -90,7 +90,7 @@ fun PuntoCard(punto: PuntoMedicion, onClick: () -> Unit) {
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${"%.1f".format(punto.cloroLibre)} mg/L",
+                    text = "${"%.2f".format(punto.cloroLibre)} mg/L",
                     style = MaterialTheme.typography.titleLarge,
                     color = punto.estado.color()
                 )
