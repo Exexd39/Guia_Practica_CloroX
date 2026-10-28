@@ -45,6 +45,34 @@ def buscar_punto(id_punto: str):
             return punto
     return None
 
+def buscar_galpon(id_galpon: str):
+    for galpon in galpones:
+        if galpon["id"] == id_galpon:
+            return galpon
+    return None
+
+def crear_alerta(medicion: dict):
+    if medicion["estado"] == "normal":
+        return None
+
+    # En caso de que si sea alerta, se creara
+    galpon = buscar_galpon(medicion["id_galpon"])
+    alerta = {
+        "id": str(uuid4()),
+        "id_medicion": medicion["id"],
+        "id_punto": medicion["id_punto"],
+        "id_galpon": medicion["id_galpon"],
+        "id_granja": galpon["id_granja"],
+        "gravedad": medicion["estado"],
+        "desviacion": medicion["desviacion"],
+        "nivel_cloro": medicion["nivel_cloro"],
+        "estado": "abierta",
+        "fecha_hora": medicion["fecha_hora"],
+    }
+    base_datos_alertas.append(alerta)
+    return alerta
+    
+
 # Clase para medicion
 class MedicionEntrada(BaseModel):
     id_punto: str
@@ -63,6 +91,7 @@ class MedicionCloro(BaseModel):
 
 
 # Aca simularemos la abse de datos
+base_datos_alertas = []
 base_datos_mediciones = []
 
 granjas = [
@@ -98,11 +127,17 @@ puntos_medicion = [
 ]
 
 
-# Aqui van todas las rutas #
-# GET
+"""
+RUTAS - GET
+"""
 @app.get("/")
 def leer_raiz():
     return {"mensaje": "Bienvenido a la Api de CloroApp, ojala funcione jeje"}
+
+# EXCLUSIVO PARA QUE LO LEA RENDER
+@app.get("/health")
+def health_check():
+    return {"status": "Esta todo bien amigo render, te quiero"}
 
 @app.get("/granjas")
 def obtener_granjas():
@@ -124,13 +159,38 @@ def obtener_puntos(id_galpon: str | None = None):
 def obtener_mediciones():
     return base_datos_mediciones
 
+@app.get("/alertas")
+def listar_alertas(
+    estado: str | None = None,
+    id_granja: str | None = None,
+    id_punto: str | None = None,
+):
+    resultado = base_datos_alertas
+    if estado is not None:
+        resultado = [a for a in resultado if a["estado"] == estado]
+    if id_granja is not None:
+        resultado = [a for a in resultado if a["id_granja"] == id_granja]
+    if id_punto is not None:
+        resultado = [a for a in resultado if a["id_punto"] == id_punto]
+
+    return sorted(resultado, key=lambda a: a["fecha_hora"], reverse=True)
+
+@app.get("/alertas/{id_alerta}")
+def detalle_alerta(id_alerta: str):
+    for alerta in base_datos_alertas:
+        if alerta["id"] == id_alerta:
+            return alerta
+    raise HTTPException(status_code=404, detail="No existe la alerta")
+
 @app.get("/puntos/{id_punto}/mediciones")
 def mediciones_de_punto(id_punto: str):
     if buscar_punto(id_punto) is None:
         raise HTTPException(status_code=404, detail="El punto de medicion no existe")
     return [m for m in base_datos_mediciones if m["id_punto"] == id_punto]
 
-# POST
+"""
+POST
+"""
 @app.post("/mediciones")
 def registrar_medicion(entrada: MedicionEntrada):
     punto = buscar_punto(entrada.id_punto)
@@ -149,4 +209,9 @@ def registrar_medicion(entrada: MedicionEntrada):
         fecha_hora=normalizar_fecha(entrada.fecha_hora)
     )
     base_datos_mediciones.append(medicion.model_dump())
-    return {"mensaje": "Medicion registrada exitosamente", "datos": medicion}
+    alerta = crear_alerta(medicion.model_dump())
+    return {
+        "mensaje": "Medicion registrada exitosamente",
+        "datos": medicion,
+        "alerta": alerta
+    }
