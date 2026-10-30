@@ -16,10 +16,13 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+*.apk
+*.aab
 
 # Generated files
 bin/
 gen/
+*.log
 
 # OS files
 .DS_Store
@@ -27,6 +30,20 @@ Thumbs.db
 
 # Kotlin
 .kotlin/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Secretos y configuración privada (agregar ANTES de crearlos)
+.env
+.env.*
+*.db
+*.sqlite
+google-services.json
+keystore.properties
 
 # Keystore
 *.jks
