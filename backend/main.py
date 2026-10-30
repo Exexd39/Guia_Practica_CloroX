@@ -1,7 +1,9 @@
+import random
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from datetime import datetime
 from uuid import uuid4
+from datetime import datetime, timedelta
 
 app = FastAPI(title="API CloroApp")
 
@@ -13,7 +15,7 @@ CRITICO_MAX = 6.0
 
 FORMATO_FECHA = "%Y-%m-%d %H:%M:%S"
 
-# ---------- DATOS (listas en memoria) ----------
+# ---------- DATOS (listas en memoria) / CONSTANTES ----------
 granjas = [
     {"id": "g1", "nombre": "Granja Norte"},
     {"id": "g2", "nombre": "Granja Sur"},
@@ -49,6 +51,12 @@ usuarios = [
     {"id": "u3", "nombre": "Carla Mora", "correo": "jefatura@cloro.cl",
      "clave": "1234", "rol": "JEFATURA", "granjasAsignadas": ["g1", "g2", "g3"]},
 ]
+
+PERIODOS = {
+    "24h": timedelta(hours=24),
+    "7d": timedelta(days=7),
+    "30d": timedelta(days=30),
+}
 
 # Se guardaran datos
 base_datos_mediciones = []
@@ -99,7 +107,6 @@ def buscar_alerta(id_alerta: str):
             return a
     return None
 
-
 def crear_alerta(medicion: dict):
     if medicion["estado"] == "NORMAL":
         return None
@@ -118,7 +125,7 @@ def crear_alerta(medicion: dict):
     base_datos_alertas.append(alerta)
     return alerta
     
-def crear_medicion(id_punto: str, nivel: float, fecha_hora: str | None = None):
+def crear_medicion(id_punto: str, nivel: float, fecha_hora: str | None = None, con_alerta: bool = True):
     punto = buscar_punto(id_punto)
     if punto is None:
         raise HTTPException(status_code=404, detail="El punto de medicion no existe")
@@ -134,7 +141,7 @@ def crear_medicion(id_punto: str, nivel: float, fecha_hora: str | None = None):
         "fecha_hora": normalizar_fecha(fecha_hora),
     }
     base_datos_mediciones.append(medicion)
-    alerta = crear_alerta(medicion)
+    alerta = crear_alerta(medicion) if con_alerta else None
     return medicion, alerta
 
 def ultima_medicion(id_punto: str):
@@ -142,6 +149,29 @@ def ultima_medicion(id_punto: str):
     if not propias:
         return None
     return max(propias, key=lambda m: m["fecha_hora"])
+
+def filtrar_periodo(mediciones: list, periodo: str | None):
+    if periodo is None:
+        return mediciones
+    if periodo not in PERIODOS:
+        raise HTTPException(status_code=422, detail="periodo debe ser 24h, 7d o 30d")
+    desde = (datetime.now() - PERIODOS[periodo]).strftime(FORMATO_FECHA)
+    return [m for m in mediciones if m["fecha_hora"] >= desde]
+
+def calcular_resumen(mediciones: list):
+    if not mediciones:
+        return {
+            "cantidad": 0, "promedio": None, "maximo": None, "minimo": None,
+            "fuera_de_rango": 0
+        }
+    valores = [m["nivel_cloro"] for m in mediciones]
+    return {
+        "cantidad": len(valores),
+        "promedio": round(sum(valores) / len(valores), 2),
+        "maximo": max(valores),
+        "minimo": min(valores),
+        "fuera_de_rango": len([m for m in mediciones if m["estado"] != "NORMAL"]),
+    }
 
 def alerta_abierta_de(id_punto: str):
     abiertas = [a for a in base_datos_alertas
@@ -151,10 +181,21 @@ def alerta_abierta_de(id_punto: str):
     return max(abiertas, key=lambda a: a["fecha_hora"])
 
 
-# Datos de arranque: las 12 mediciones actuales de la UI (Exclusivo de arranque)
-for _id, _g, _c, _n, _t, _u, _cloro, _hora in PUNTOS_BASE:
-    crear_medicion(_id, _cloro, f"2026-10-21 {_hora}:00")
+# Bucle de arranque
+def sembrar_datos():
+    azar = random.Random(42)
+    ahora = datetime.now().replace(microsecond=0)
+    for i, (id_p, _g, _c, _n, _t, _u, cloro, _h) in enumerate(PUNTOS_BASE):
+        # Historial: una medicion cada 6 horas durante 30 dias
+        for horas_atras in range(30 * 24, 0, -6):
+            fecha = ahora - timedelta(hours=horas_atras)
+            valor = max(0.0, azar.gauss(cloro, 0.6))
+            crear_medicion(id_p, valor, fecha.strftime(FORMATO_FECHA), con_alerta=False)
+        # Medicion actual (UI), con alerta si corresponde
+        actual = ahora - timedelta(minutes=i)
+        crear_medicion(id_p, cloro, actual.strftime(FORMATO_FECHA))
 
+sembrar_datos()
 
 # ---------- MODELOS ----------
 class MedicionEntrada(BaseModel):
@@ -233,12 +274,6 @@ def listar_acciones(id_punto: str | None = None, id_alerta: str | None = None):
         resultado = [a for a in resultado if a["id_alerta"] == id_alerta]
     return resultado
 
-@app.get("/puntos/{id_punto}/mediciones")
-def mediciones_de_punto(id_punto: str):
-    if buscar_punto(id_punto) is None:
-        raise HTTPException(status_code=404, detail="El punto de medicion no existe")
-    return [m for m in base_datos_mediciones if m["id_punto"] == id_punto]
-
 @app.get("/mediciones")
 def obtener_mediciones():
     return base_datos_mediciones
@@ -257,6 +292,43 @@ def listar_alertas(
     if id_punto is not None:
         resultado = [a for a in resultado if a["id_punto"] == id_punto]
     return sorted(resultado, key=lambda a: a["fecha_hora"], reverse=True)
+
+@app.get("/resumen")
+def resumen(periodo: str = "24h", id_granja: str | None = None):
+    puntos = [p for p in puntos_medicion
+              if id_granja is None or p["id_granja"] == id_granja]
+    if id_granja is not None and not puntos:
+        raise HTTPException(status_code=404, detail="La granja no existe")
+
+    ids = {p["id"] for p in puntos}
+    todas = filtrar_periodo(
+        [m for m in base_datos_mediciones if m["id_punto"] in ids], periodo
+    )
+    por_punto = []
+    for p in puntos:
+        propias = [m for m in todas if m["id_punto"] == p["id"]]
+        por_punto.append({
+            "id_punto": p["id"],
+            "codigo": p["codigo"],
+            "nombre": p["nombre"],
+            **calcular_resumen(propias)
+        })
+    abiertas = [a for a in base_datos_alertas
+                if a["estado"] == "ABIERTA" and a["id_punto"] in ids]
+    return {
+        "periodo": periodo,
+        "alertas_abiertas": len(abiertas),
+        "general": calcular_resumen(todas),
+        "por_punto": por_punto,
+    }
+
+@app.get("/puntos/{id_punto}/mediciones")
+def mediciones_de_punto(id_punto: str, periodo: str | None = None):
+    if buscar_punto(id_punto) is None:
+        raise HTTPException(status_code=404, detail="El punto de medicion no existe")
+    propias = [m for m in base_datos_mediciones if m["id_punto"] == id_punto]
+    return sorted(filtrar_periodo(propias, periodo), key=lambda m: m["fecha_hora"])
+
 
 @app.get("/alertas/{id_alerta}")
 def detalle_alerta(id_alerta: str):
