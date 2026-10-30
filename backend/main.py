@@ -1,9 +1,9 @@
 import random
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from datetime import datetime
 from uuid import uuid4
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 app = FastAPI(title="API CloroApp")
 
@@ -14,6 +14,7 @@ NORMAL_MAX = 5.0
 CRITICO_MAX = 6.0
 
 FORMATO_FECHA = "%Y-%m-%d %H:%M:%S"
+ZONA = ZoneInfo("America/Santiago")
 
 # ---------- DATOS (listas en memoria) / CONSTANTES ----------
 granjas = [
@@ -64,6 +65,9 @@ base_datos_alertas = []
 base_datos_acciones = []
 
 # ---------- FUNCIONES ---------
+def hora_chile() -> datetime:
+    return datetime.now(ZONA).replace(microsecond=0, tzinfo=None)
+
 def calcular_estado(cloro: float) -> str:
     if cloro < CRITICO_MIN or cloro > CRITICO_MAX:
         return "CRITICO"
@@ -80,7 +84,7 @@ def calcular_desviacion(cloro: float) -> str:
 
 def normalizar_fecha(fecha: str | None) -> str:
     if fecha is None:
-        return datetime.now().strftime(FORMATO_FECHA)
+        return hora_chile().strftime(FORMATO_FECHA)
     try:
         return datetime.strptime(fecha, FORMATO_FECHA).strftime(FORMATO_FECHA)
     except ValueError:
@@ -155,7 +159,7 @@ def filtrar_periodo(mediciones: list, periodo: str | None):
         return mediciones
     if periodo not in PERIODOS:
         raise HTTPException(status_code=422, detail="periodo debe ser 24h, 7d o 30d")
-    desde = (datetime.now() - PERIODOS[periodo]).strftime(FORMATO_FECHA)
+    desde = (hora_chile() - PERIODOS[periodo]).strftime(FORMATO_FECHA)
     return [m for m in mediciones if m["fecha_hora"] >= desde]
 
 def calcular_resumen(mediciones: list):
@@ -184,7 +188,7 @@ def alerta_abierta_de(id_punto: str):
 # Bucle de arranque
 def sembrar_datos():
     azar = random.Random(42)
-    ahora = datetime.now().replace(microsecond=0)
+    ahora = hora_chile().replace(microsecond=0)
     for i, (id_p, _g, _c, _n, _t, _u, cloro, _h) in enumerate(PUNTOS_BASE):
         # Historial: una medicion cada 6 horas durante 30 dias
         for horas_atras in range(30 * 24, 0, -6):
@@ -368,7 +372,7 @@ def registrar_accion(entrada: AccionEntrada):
         raise HTTPException(status_code=404, detail="El usuario no existe")
 
     alerta = alerta_abierta_de(entrada.id_punto)
-    ahora = datetime.now()
+    ahora = hora_chile()
     accion = {
         "id": str(uuid4()),
         "id_punto": entrada.id_punto,
@@ -408,7 +412,7 @@ def cerrar_alerta(id_alerta: str, entrada: CierreEntrada):
 
     alerta["estado"] = "CERRADA"
     alerta["cerrada_por"] = usuario["nombre"]
-    alerta["fecha_cierre"] = datetime.now().strftime(FORMATO_FECHA)
+    alerta["fecha_cierre"] = hora_chile().strftime(FORMATO_FECHA)
     for a in acciones:
         a["estado_resolucion"] = "RESUELTA"
     return alerta 
