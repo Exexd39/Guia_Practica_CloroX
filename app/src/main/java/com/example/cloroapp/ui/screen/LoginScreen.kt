@@ -18,12 +18,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.example.cloroapp.data.Repositorio
 import com.example.cloroapp.data.Usuarios
 import com.example.cloroapp.data.model.Usuario
 import com.example.cloroapp.ui.theme.AzulPrincipal
@@ -31,12 +33,15 @@ import com.example.cloroapp.ui.theme.Blanco
 import com.example.cloroapp.ui.theme.EstadoCritico
 import com.example.cloroapp.ui.theme.FondoClaro
 import com.example.cloroapp.ui.theme.TextoSecundario
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(onIngresar: (Usuario) -> Unit) {
     var correo by remember { mutableStateOf("") }
     var clave by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    var cargando by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -97,18 +102,21 @@ fun LoginScreen(onIngresar: (Usuario) -> Unit) {
 
         Button(
             onClick = {
-                val usuario = Usuarios.autenticar(correo, clave)
-                if (usuario != null) {
-                    onIngresar(usuario)
-                } else {
-                    error = "Correo o contraseña incorrectos"
+                scope.launch {
+                    cargando = true
+                    Repositorio.login(correo, clave)
+                        .onSuccess { onIngresar(it) }
+                        .onFailure { error = it.message }
+                    cargando = false
                 }
             },
+            enabled = !cargando,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = AzulPrincipal)
         ) {
-            Text("Ingresar", color = Blanco)
+            Text(if (cargando) "Conectando..." else "Ingresar", color = Blanco)
         }
+
 
         Spacer(modifier = Modifier.height(24.dp))
 
