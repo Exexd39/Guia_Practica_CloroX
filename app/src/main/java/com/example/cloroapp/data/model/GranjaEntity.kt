@@ -6,7 +6,7 @@ import com.google.gson.annotations.SerializedName
 
 // Aqui Room va a leerlo y generara una tabla llamada tal cual esta ahi.
 @Entity(tableName = "granjas_table")
-data class Granja(
+data class GranjaEntity(
     @PrimaryKey
     @SerializedName("id") val id: String,
     @SerializedName("nombre") val nombre: String

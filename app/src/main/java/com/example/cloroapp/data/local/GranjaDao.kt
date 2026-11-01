@@ -4,7 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.example.cloroapp.data.model.Granja
+import com.example.cloroapp.data.model.GranjaEntity
 
 
 @Dao
@@ -12,11 +12,11 @@ import com.example.cloroapp.data.model.Granja
 interface GranjaDao {
     // Leemos que hay y traemos todo
     @Query("SELECT * FROM granjas_table")
-    suspend fun obtenerTodas(): List<Granja>
+    suspend fun obtenerTodas(): List<GranjaEntity>
 
     // Aca guardamos la lista que viene de FastApi, replace actualiza datos con la misma ID
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun guardarGranjas(granja: List<Granja>): List<Long>
+    suspend fun guardarGranjas(granja: List<GranjaEntity>): List<Long>
 
     // Limpiamos la bodega, esto se quitara en produccion jeje
     @Query("DELETE FROM granjas_table")
