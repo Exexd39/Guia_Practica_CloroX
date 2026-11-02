@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.cloroapp.data.Repositorio
 import com.example.cloroapp.data.local.AppDatabase
 import com.example.cloroapp.ui.screen.DashboardScreen
 import com.example.cloroapp.ui.theme.CloroAppTheme
@@ -28,6 +29,7 @@ import com.example.cloroapp.ui.viewmodel.CloroViewModel
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Repositorio.iniciar(applicationContext)
         enableEdgeToEdge()
         // Instanciamos la base de datos y el dao
         val database = AppDatabase.getDatabase(applicationContext)
