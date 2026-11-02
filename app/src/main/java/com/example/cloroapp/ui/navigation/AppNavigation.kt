@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.compose.NavHost
@@ -30,6 +31,7 @@ import com.example.cloroapp.ui.screen.DetalleGranjaScreen
 import com.example.cloroapp.ui.screen.DetallePuntoScreen
 import com.example.cloroapp.ui.screen.HistorialScreen
 import com.example.cloroapp.ui.screen.LoginScreen
+import kotlinx.coroutines.launch
 
 object Rutas {
     const val LOGIN = "login"
@@ -104,9 +106,14 @@ fun AppNavigation() {
             }
 
             composable(Rutas.DASHBOARD) {
+                val estadoRed by Repositorio.estado.collectAsState()
+                val scope = rememberCoroutineScope()
                 LaunchedEffect(Unit) { Repositorio.cargarGranjas() }
+
                 DashboardScreen(
                     granjas = Usuarios.granjasVisibles(SesionActual.usuario, todas),
+                    estadoRed = estadoRed,
+                    onReintentar = { scope.launch { Repositorio.cargarGranjas() } },
                     onGranjaClick = { granja ->
                         navController.navigate(Rutas.detalleGranja(granja.id))
                     },

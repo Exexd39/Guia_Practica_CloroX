@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.example.cloroapp.data.EstadoRed
 import com.example.cloroapp.data.model.EstadoCloro
 import com.example.cloroapp.data.model.Granja
 import com.example.cloroapp.data.model.SesionActual
@@ -42,6 +43,8 @@ import com.example.cloroapp.ui.theme.TextoSecundario
 @Composable
 fun DashboardScreen(
     granjas: List<Granja>,
+    estadoRed: EstadoRed = EstadoRed(),
+    onReintentar: () -> Unit = {},
     onGranjaClick: (Granja) -> Unit = {},
     onSalir: () -> Unit = {}
 ) {
@@ -71,6 +74,18 @@ fun DashboardScreen(
             color = TextoSecundario
         )
         Spacer(modifier = Modifier.height(16.dp))
+
+        BannerEstado(estadoRed, hayDatos = granjas.isNotEmpty(), onReintentar = onReintentar)
+
+        if (granjas.isEmpty() && !estadoRed.cargando) {
+            Text(
+                text = if (estadoRed.error != null)
+                    "Todavía no hay datos guardados. Conéctate a internet para descargarlos."
+                else "No tienes granjas asignadas.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = TextoSecundario
+            )
+        }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(granjas) { granja ->
@@ -121,6 +136,37 @@ fun GranjaCard(granja: Granja, onClick: () -> Unit) {
             )
         }
     }
+}
+
+@Composable
+fun BannerEstado(estado: EstadoRed, hayDatos: Boolean, onReintentar: () -> Unit) {
+    val mensaje = when {
+        estado.cargando -> "Actualizando... (si el servidor estaba dormido, puede tardar un minuto)"
+        estado.error != null ->
+            if (hayDatos) "${estado.error}. Mostrando datos guardados." else estado.error
+        estado.ultimaActualizacion != null -> "Última actualización: ${estado.ultimaActualizacion}"
+        else -> null
+    } ?: return
+
+    val hayError = estado.error != null && !estado.cargando
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = mensaje,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (hayError) EstadoAdvertencia else TextoSecundario,
+            modifier = Modifier.weight(1f)
+        )
+        if (!estado.cargando) {
+            TextButton(onClick = onReintentar) {
+                Text(if (hayError) "Reintentar" else "Actualizar", color = AzulPrincipal)
+            }
+        }
+    }
+    Spacer(modifier = Modifier.height(8.dp))
 }
 
 // Colores y textos asociados a cada estado

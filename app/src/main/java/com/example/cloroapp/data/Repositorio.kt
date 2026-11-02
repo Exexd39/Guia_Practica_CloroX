@@ -15,9 +15,18 @@ import com.example.cloroapp.data.network.aModelo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import retrofit2.HttpException
+import android.content.SharedPreferences
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.io.IOException
 
 
+data class EstadoRed (
+    val cargando: Boolean = false,
+    val error: String? = null,
+    val ultimaActualizacion: String? = null
+)
 object Repositorio {
     suspend fun login(correo: String, clave: String): Result<Usuario>{
         return try {
@@ -26,18 +35,27 @@ object Repositorio {
         } catch (e: HttpException) {
             Result.failure(Exception("Correo o contraseña incorrectos"))
         } catch (e: IOException) {
-        val local = Usuarios.autenticar(correo, clave)
-        if (local != null) Result.success(local)
-        else Result.failure(Exception("Sin conexión con el servidor"))
-    }
+            val local = Usuarios.autenticar(correo, clave)
+            if (local != null) Result.success(local)
+            else Result.failure(Exception("Sin conexión con el servidor"))
+        }
     }
 
     private val _granjas = MutableStateFlow<List<Granja>>(emptyList())
     val granjas: StateFlow<List<Granja>> = _granjas
     private var puntoDao: PuntoDao? = null
+    private val _estado = MutableStateFlow(EstadoRed())
+    val estado: StateFlow<EstadoRed> = _estado
 
+    private var prefs: SharedPreferences? = null
+
+    private fun registrarError(mensaje: String) {
+        _estado.value = _estado.value.copy(cargando = false, error = mensaje)
+    }
     fun iniciar(context: Context) {
         puntoDao = AppDatabase.getDatabase(context).puntoDao()
+        prefs = context.getSharedPreferences("cloro_prefs", Context.MODE_PRIVATE)
+        _estado.value = EstadoRed(ultimaActualizacion = prefs?.getString("ultima_sync", null))
     }
 
     private suspend fun leerLocal(): List<Granja> {
@@ -69,20 +87,28 @@ object Repositorio {
     }
 
     suspend fun cargarGranjas(): Result<Unit> {
-        // Aca se mostrara local mientras llega lo del servidor
+        _estado.value = _estado.value.copy(cargando = true, error = null)
+
         if (_granjas.value.isEmpty()) {
             _granjas.value = leerLocal()
         }
-        // Aca se intenta actualizar el servidor
         return try {
             val remotas = RetrofitClient.apiService.obtenerResumenGranjas()
             _granjas.value = remotas.map { it.aModelo() }
             guardarLocal(remotas)
+
+            val ahora = SimpleDateFormat("dd-MM-yyyy HH:mm", Locale.getDefault()).format(Date())
+            prefs?.edit()?.putString("ultima_sync", ahora)?.apply()
+            _estado.value = EstadoRed(ultimaActualizacion = ahora)
             Result.success(Unit)
         } catch (e: HttpException) {
-            Result.failure(Exception("El servidor respondió con error (${e.code()})"))
+            val msg = "El servidor respondió con error (${e.code()})"
+            registrarError(msg)
+            Result.failure(Exception(msg))
         } catch (e: IOException) {
-            Result.failure(Exception("Sin conexión con el servidor"))
+            val msg = "Sin conexión con el servidor"
+            registrarError(msg)
+            Result.failure(Exception(msg))
         }
     }
     fun buscarPunto(id: String, todas: List<Granja>): Pair<Granja, PuntoMedicion>? {
