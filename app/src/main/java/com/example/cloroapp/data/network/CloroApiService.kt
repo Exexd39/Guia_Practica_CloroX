@@ -10,6 +10,9 @@ interface CloroApiService {
     @GET("granjas")
     suspend fun obtenerGranjas(): List<GranjaEntity>
 
+    @GET("granjas/resumen")
+    suspend fun obtenerResumenGranjas(): List<GranjaDto>
+
     // POST
     @POST("login")
     suspend fun login(@Body datos: LoginRequest): UsuarioDto

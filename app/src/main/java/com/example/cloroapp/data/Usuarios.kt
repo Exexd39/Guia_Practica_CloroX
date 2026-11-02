@@ -18,8 +18,8 @@ object Usuarios {
             it.correo.equals(correo.trim(), ignoreCase = true) && it.clave == clave
         }
 
-    fun granjasVisibles(usuario: Usuario?): List<Granja> {
+    fun granjasVisibles(usuario: Usuario?, todas: List<Granja>): List<Granja> {
         if (usuario == null) return emptyList()
-        return DatosFalsos.granjas.filter { it.id in usuario.granjasAsignadas }
+        return todas.filter { it.id in usuario.granjasAsignadas }
     }
 }

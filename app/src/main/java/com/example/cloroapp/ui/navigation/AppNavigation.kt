@@ -11,6 +11,8 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -18,7 +20,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.cloroapp.data.DatosFalsos
+import com.example.cloroapp.data.Repositorio
 import com.example.cloroapp.data.Usuarios
 import com.example.cloroapp.data.model.SesionActual
 import com.example.cloroapp.ui.screen.AccionScreen
@@ -60,6 +62,7 @@ fun AppNavigation() {
     val navController = rememberNavController()
     val entradaActual by navController.currentBackStackEntryAsState()
     val rutaActual = entradaActual?.destination?.route
+    val todas by Repositorio.granjas.collectAsState()
 
     Scaffold(
         bottomBar = {
@@ -101,8 +104,9 @@ fun AppNavigation() {
             }
 
             composable(Rutas.DASHBOARD) {
+                LaunchedEffect(Unit) { Repositorio.cargarGranjas() }
                 DashboardScreen(
-                    granjas = Usuarios.granjasVisibles(SesionActual.usuario),
+                    granjas = Usuarios.granjasVisibles(SesionActual.usuario, todas),
                     onGranjaClick = { granja ->
                         navController.navigate(Rutas.detalleGranja(granja.id))
                     },
@@ -117,7 +121,7 @@ fun AppNavigation() {
 
             composable(Rutas.ALERTAS) {
                 AlertasScreen(
-                    granjas = Usuarios.granjasVisibles(SesionActual.usuario),
+                    granjas = Usuarios.granjasVisibles(SesionActual.usuario, todas),
                     rol = SesionActual.rol,
                     onRegistrarClick = { punto ->
                         navController.navigate(Rutas.accion(punto.id))
@@ -127,7 +131,7 @@ fun AppNavigation() {
 
             composable(Rutas.HISTORIAL) {
                 HistorialScreen(
-                    granjas = Usuarios.granjasVisibles(SesionActual.usuario),
+                    granjas = Usuarios.granjasVisibles(SesionActual.usuario, todas),
                     onPuntoClick = { punto ->
                         navController.navigate(Rutas.detallePunto(punto.id))
                     }
@@ -136,7 +140,7 @@ fun AppNavigation() {
 
             composable(Rutas.DETALLE_GRANJA) { entrada ->
                 val granjaId = entrada.arguments?.getString("granjaId")
-                val granja = Usuarios.granjasVisibles(SesionActual.usuario)
+                val granja = Usuarios.granjasVisibles(SesionActual.usuario, todas)
                     .find { it.id == granjaId }
                 if (granja != null) {
                     DetalleGranjaScreen(
@@ -151,7 +155,7 @@ fun AppNavigation() {
 
             composable(Rutas.DETALLE_PUNTO) { entrada ->
                 val puntoId = entrada.arguments?.getString("puntoId")
-                val encontrado = puntoId?.let { DatosFalsos.buscarPunto(it) }
+                val encontrado = puntoId?.let { Repositorio.buscarPunto(it, todas) }
                 if (encontrado != null) {
                     DetallePuntoScreen(
                         granja = encontrado.first,
@@ -163,7 +167,7 @@ fun AppNavigation() {
 
             composable(Rutas.ACCION) { entrada ->
                 val puntoId = entrada.arguments?.getString("puntoId")
-                val encontrado = puntoId?.let { DatosFalsos.buscarPunto(it) }
+                val encontrado = puntoId?.let { Repositorio.buscarPunto(it, todas) }
                 if (encontrado != null) {
                     AccionScreen(
                         granja = encontrado.first,
