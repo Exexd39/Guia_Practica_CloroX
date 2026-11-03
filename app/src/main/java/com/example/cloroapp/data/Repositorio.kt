@@ -45,6 +45,7 @@ object Repositorio {
     val granjas: StateFlow<List<Granja>> = _granjas
     private var puntoDao: PuntoDao? = null
     private val _estado = MutableStateFlow(EstadoRed())
+    private val cacheHistorial = mutableMapOf<String, List<Double>>()
     val estado: StateFlow<EstadoRed> = _estado
 
     private var prefs: SharedPreferences? = null
@@ -71,6 +72,23 @@ object Repositorio {
                     ).aModelo()
                 }
             )
+        }
+    }
+
+    suspend fun cargarHistorial(idPunto: String, periodo: String): Result<List<Double>> {
+        val clave = "$idPunto|$periodo"
+        return try {
+            val valores = RetrofitClient.apiService
+                .obtenerMediciones(idPunto, periodo)
+                .map { it.nivelCloro }
+            cacheHistorial[clave] = valores
+            Result.success(valores)
+        } catch (e: HttpException) {
+            Result.failure(Exception("El servidor respondió con error (${e.code()})"))
+        } catch (e: IOException) {
+            val guardado = cacheHistorial[clave]
+            if (guardado != null) Result.success(guardado)
+            else Result.failure(Exception("Sin conexión: este historial aún no se ha descargado"))
         }
     }
 

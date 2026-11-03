@@ -5,6 +5,7 @@ import com.example.cloroapp.data.model.PuntoMedicion
 import com.example.cloroapp.data.model.Rol
 import com.example.cloroapp.data.model.TipoPunto
 import com.example.cloroapp.data.model.Usuario
+import com.google.gson.annotations.SerializedName
 
 
 // Esto lo mandamos al servidor
@@ -41,6 +42,11 @@ data class PuntoDto(
     val cloroLibre: Double,
     val fecha: String,
     val hora: String
+)
+
+data class MedicionDto(
+    @SerializedName("nivel_cloro") val nivelCloro: Double,
+    @SerializedName("fecha_hora") val fechaHora: String
 )
 
 data class GranjaDto(

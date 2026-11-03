@@ -4,6 +4,9 @@ import com.example.cloroapp.data.model.GranjaEntity
 import retrofit2.http.GET
 import retrofit2.http.Body
 import retrofit2.http.POST
+import retrofit2.http.Path
+import retrofit2.http.Query
+
 
 interface CloroApiService {
     // GET
@@ -12,6 +15,12 @@ interface CloroApiService {
 
     @GET("granjas/resumen")
     suspend fun obtenerResumenGranjas(): List<GranjaDto>
+
+    @GET("puntos/{id}/mediciones")
+    suspend fun obtenerMediciones(
+        @Path("id") idPunto: String,
+        @Query("periodo") periodo: String
+    ): List<MedicionDto>
 
     // POST
     @POST("login")
