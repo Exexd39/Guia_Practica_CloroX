@@ -16,6 +16,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import retrofit2.HttpException
 import android.content.SharedPreferences
+import com.example.cloroapp.data.model.Alerta
+import com.example.cloroapp.data.model.RegistroAccion
+import com.example.cloroapp.data.model.SesionActual
+import com.example.cloroapp.data.network.AccionRequest
+import com.example.cloroapp.data.network.CierreRequest
+import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -28,7 +34,7 @@ data class EstadoRed (
     val ultimaActualizacion: String? = null
 )
 object Repositorio {
-    suspend fun login(correo: String, clave: String): Result<Usuario>{
+    suspend fun login(correo: String, clave: String): Result<Usuario> {
         return try {
             val dto = RetrofitClient.apiService.login(LoginRequest(correo.trim(), clave))
             Result.success(dto.aModelo())
@@ -49,10 +55,13 @@ object Repositorio {
     val estado: StateFlow<EstadoRed> = _estado
 
     private var prefs: SharedPreferences? = null
+    private val _alertas = MutableStateFlow<List<Alerta>>(emptyList())
+    val alertas: StateFlow<List<Alerta>> = _alertas
 
     private fun registrarError(mensaje: String) {
         _estado.value = _estado.value.copy(cargando = false, error = mensaje)
     }
+
     fun iniciar(context: Context) {
         puntoDao = AppDatabase.getDatabase(context).puntoDao()
         prefs = context.getSharedPreferences("cloro_prefs", Context.MODE_PRIVATE)
@@ -129,12 +138,92 @@ object Repositorio {
             Result.failure(Exception(msg))
         }
     }
+
     fun buscarPunto(id: String, todas: List<Granja>): Pair<Granja, PuntoMedicion>? {
         for (granja in todas) {
             val punto = granja.puntos.find { it.id == id }
             if (punto != null)
                 return granja to punto
-            }
+        }
         return null
+    }
+
+    private fun mensajeDe(e: HttpException): String {
+        return try {
+            val cuerpo = e.response()?.errorBody()?.string() ?: ""
+            JSONObject(cuerpo).getString("detail")
+        } catch (ex: Exception) {
+            "El servidor respondió con error (${e.code()})"
+        }
+    }
+
+    suspend fun cargarAlertas(): Result<Unit> {
+        return try {
+            val conAccion = RetrofitClient.apiService.obtenerAcciones(null)
+                .mapNotNull { it.idAlerta }
+                .toSet()
+            _alertas.value = RetrofitClient.apiService.obtenerAlertas("ABIERTA")
+                .map { it.aModelo(it.id in conAccion) }
+            Result.success(Unit)
+        } catch (e: HttpException) {
+            Result.failure(Exception(mensajeDe(e)))
+        } catch (e: IOException) {
+            Result.failure(Exception("Sin conexión con el servidor"))
+        }
+    }
+
+    suspend fun cargarAcciones(idPunto: String): Result<List<RegistroAccion>> {
+        return try {
+            val lista = RetrofitClient.apiService.obtenerAcciones(idPunto)
+                .map {
+                    RegistroAccion(
+                        it.idPunto,
+                        it.tipo,
+                        it.observaciones,
+                        "${it.fecha} ${it.hora}",
+                        it.rol
+                    )
+                }
+                .reversed()
+            Result.success(lista)
+        } catch (e: HttpException) {
+            Result.failure(Exception(mensajeDe(e)))
+        } catch (e: IOException) {
+            Result.failure(Exception("Sin conexión con el servidor"))
+        }
+    }
+
+    suspend fun registrarAccion(
+        idPunto: String,
+        tipo: String,
+        observaciones: String
+    ): Result<Unit> {
+        val usuario = SesionActual.usuario
+            ?: return Result.failure(Exception("No hay sesión iniciada"))
+        return try {
+            RetrofitClient.apiService.registrarAccion(
+                AccionRequest(idPunto, usuario.id, tipo, observaciones)
+            )
+            cargarAlertas()
+            Result.success(Unit)
+        } catch (e: HttpException) {
+            Result.failure(Exception(mensajeDe(e)))
+        } catch (e: IOException) {
+            Result.failure(Exception("Sin conexión: la acción no se guardó"))
+        }
+    }
+
+    suspend fun cerrarAlerta(idAlerta: String): Result<Unit> {
+        val usuario = SesionActual.usuario
+            ?: return Result.failure(Exception("No hay sesión iniciada"))
+        return try {
+            RetrofitClient.apiService.cerrarAlerta(idAlerta, CierreRequest(usuario.id))
+            cargarAlertas()
+            Result.success(Unit)
+        } catch (e: HttpException) {
+            Result.failure(Exception(mensajeDe(e)))
+        } catch (e: IOException) {
+            Result.failure(Exception("Sin conexión: no se pudo cerrar la alerta"))
+        }
     }
 }

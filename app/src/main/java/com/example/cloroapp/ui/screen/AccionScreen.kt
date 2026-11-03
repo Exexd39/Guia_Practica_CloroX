@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -21,24 +20,29 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.cloroapp.data.RegistroAcciones
+import com.example.cloroapp.data.Repositorio
 import com.example.cloroapp.data.model.Granja
 import com.example.cloroapp.data.model.PuntoMedicion
 import com.example.cloroapp.data.model.RegistroAccion
 import com.example.cloroapp.data.model.SesionActual
 import com.example.cloroapp.ui.theme.AzulPrincipal
 import com.example.cloroapp.ui.theme.Blanco
+import com.example.cloroapp.ui.theme.EstadoAdvertencia
 import com.example.cloroapp.ui.theme.EstadoNormal
 import com.example.cloroapp.ui.theme.FondoClaro
 import com.example.cloroapp.ui.theme.TextoOscuro
 import com.example.cloroapp.ui.theme.TextoSecundario
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -59,7 +63,14 @@ fun AccionScreen(
     var tipoSeleccionado by remember { mutableStateOf(tiposAccion.first()) }
     var observaciones by remember { mutableStateOf("") }
     var guardado by remember { mutableStateOf(false) }
-    val historial = RegistroAcciones.de(punto.id)
+    val scope = rememberCoroutineScope()
+    var historial by remember { mutableStateOf<List<RegistroAccion>>(emptyList()) }
+    var mensaje by remember { mutableStateOf<String?>(null) }
+    var enviando by remember { mutableStateOf(false) }
+
+    LaunchedEffect(punto.id) {
+        Repositorio.cargarAcciones(punto.id).onSuccess { historial = it }
+    }
 
     Column(
         modifier = Modifier
@@ -135,21 +146,39 @@ fun AccionScreen(
 
         Button(
             onClick = {
-                RegistroAcciones.lista.add(
-                    RegistroAccion(
-                        puntoId = punto.id,
-                        tipo = tipoSeleccionado,
-                        observaciones = observaciones.trim(),
-                        fecha = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()),
-                        rol = SesionActual.rol.nombre
-                    )
-                )
-                observaciones = ""
-                guardado = true
+                if (observaciones.trim().length < 3) {
+                    guardado = false
+                    mensaje = "Escribe al menos 3 caracteres en las observaciones"
+                } else {
+                    scope.launch {
+                        enviando = true
+                        Repositorio.registrarAccion(punto.id, tipoSeleccionado, observaciones.trim())
+                            .onSuccess {
+                                observaciones = ""
+                                guardado = true
+                                mensaje = null
+                                Repositorio.cargarAcciones(punto.id).onSuccess { historial = it }
+                            }
+                            .onFailure {
+                                guardado = false
+                                mensaje = it.message
+                            }
+                        enviando = false
+                    }
+                }
             },
+            enabled = !enviando,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Guardar acción")
+            Text(if (enviando) "Guardando..." else "Guardar acción")
+        }
+        mensaje?.let {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = EstadoAdvertencia
+            )
         }
 
         if (guardado) {

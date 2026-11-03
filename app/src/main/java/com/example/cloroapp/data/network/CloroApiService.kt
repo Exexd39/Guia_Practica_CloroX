@@ -22,8 +22,20 @@ interface CloroApiService {
         @Query("periodo") periodo: String
     ): List<MedicionDto>
 
+    @GET("alertas")
+    suspend fun obtenerAlertas(@Query("estado") estado: String): List<AlertaDto>
+
+    @GET("acciones")
+    suspend fun obtenerAcciones(@Query("id_punto") idPunto: String?): List<AccionDto>
+
     // POST
     @POST("login")
     suspend fun login(@Body datos: LoginRequest): UsuarioDto
+
+    @POST("acciones")
+    suspend fun registrarAccion(@Body datos: AccionRequest): AccionDto
+
+    @POST("alertas/{id}/cerrar")
+    suspend fun cerrarAlerta(@Path("id") idAlerta: String, @Body datos: CierreRequest): AlertaDto
 
 }
