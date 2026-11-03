@@ -1,35 +1,37 @@
 package com.example.cloroapp
 
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.cloroapp.data.DatosFalsos
+import androidx.activity.result.contract.ActivityResultContracts
 import com.example.cloroapp.ui.navigation.AppNavigation
-import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.cloroapp.data.Notificador
 import com.example.cloroapp.data.Repositorio
 import com.example.cloroapp.data.local.AppDatabase
-import com.example.cloroapp.ui.screen.DashboardScreen
 import com.example.cloroapp.ui.theme.CloroAppTheme
 import com.example.cloroapp.ui.viewmodel.CloroViewModel
-
+import android.Manifest
 class MainActivity : ComponentActivity() {
+    private val pedirPermiso =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Repositorio.iniciar(applicationContext)
+        Notificador.crearCanal(this)
+        Notificador.programarRevision(this)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            pedirPermiso.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
         enableEdgeToEdge()
         // Instanciamos la base de datos y el dao
         val database = AppDatabase.getDatabase(applicationContext)

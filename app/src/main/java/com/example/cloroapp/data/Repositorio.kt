@@ -22,6 +22,7 @@ import com.example.cloroapp.data.model.EstadoCloro
 import com.example.cloroapp.data.model.PendienteEntity
 import com.example.cloroapp.data.model.RegistroAccion
 import com.example.cloroapp.data.model.SesionActual
+import com.example.cloroapp.data.model.TipoDesviacion
 import com.example.cloroapp.data.network.AccionRequest
 import com.example.cloroapp.data.network.CierreRequest
 import com.example.cloroapp.data.network.MedicionRequest
@@ -47,13 +48,19 @@ object Repositorio {
     suspend fun login(correo: String, clave: String): Result<Usuario> {
         return try {
             val dto = RetrofitClient.apiService.login(LoginRequest(correo.trim(), clave))
-            Result.success(dto.aModelo())
+            val usuario = dto.aModelo()
+            guardarSesion(usuario)
+            Result.success(usuario)
         } catch (e: HttpException) {
             Result.failure(Exception("Correo o contraseña incorrectos"))
         } catch (e: IOException) {
             val local = Usuarios.autenticar(correo, clave)
-            if (local != null) Result.success(local)
-            else Result.failure(Exception("Sin conexión con el servidor"))
+            if (local != null) {
+                guardarSesion(local)
+                Result.success(local)
+            } else {
+                Result.failure(Exception("Sin conexión con el servidor"))
+            }
         }
     }
 
@@ -97,6 +104,7 @@ object Repositorio {
     }
 
     fun iniciar(context: Context) {
+        if (prefs != null) return
         val db = AppDatabase.getDatabase(context)
         puntoDao = db.puntoDao()
         pendienteDao = db.pendienteDao()
@@ -281,5 +289,48 @@ object Repositorio {
         } catch (e: IOException) {
             Result.failure(Exception("Sin conexión: no se pudo cerrar la alerta"))
         }
+    }
+
+    // Recordar quién inició sesión, para que el Worker sepa a quién avisar
+    private fun guardarSesion(u: Usuario) {
+        prefs?.edit()
+            ?.putString("rol", u.rol.name)
+            ?.putStringSet("granjas", u.granjasAsignadas.toSet())
+            ?.apply()
+    }
+
+    fun cerrarSesion() {
+        prefs?.edit()?.remove("rol")?.remove("granjas")?.apply()
+    }
+
+    suspend fun revisarAlertasCriticas(context: Context) {
+        val rol = prefs?.getString("rol", null) ?: return
+        if (rol == "JEFATURA") return
+        val misGranjas = prefs?.getStringSet("granjas", emptySet()) ?: emptySet()
+        if (cargarAlertas().isFailure) return
+
+        val conocidas = _granjas.value.ifEmpty { leerLocal() }
+        val yaAvisadas = prefs?.getStringSet("notificadas", emptySet())?.toMutableSet()
+            ?: mutableSetOf()
+
+        val nuevas = _alertas.value.filter {
+            it.gravedad == EstadoCloro.CRITICO && it.idGranja in misGranjas && it.id !in yaAvisadas
+        }
+
+        for (a in nuevas) {
+            val granja = conocidas.find { it.id == a.idGranja }
+            val punto = granja?.puntos?.find { it.id == a.idPunto }
+            val lugar = if (granja != null && punto != null) "${granja.nombre} · ${punto.nombre}" else a.idPunto
+            val tipo = if (a.desviacion == TipoDesviacion.INSUFICIENTE) "cloro insuficiente" else "cloro excesivo"
+
+            Notificador.mostrar(
+                context,
+                a.id.hashCode(),
+                "Alerta crítica de cloro",
+                "$lugar: ${"%.2f".format(a.nivelCloro)} mg/L ($tipo)"
+            )
+            yaAvisadas.add(a.id)
+        }
+        prefs?.edit()?.putStringSet("notificadas", yaAvisadas)?.apply()
     }
 }

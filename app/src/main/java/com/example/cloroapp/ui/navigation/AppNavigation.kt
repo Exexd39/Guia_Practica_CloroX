@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -114,7 +115,11 @@ fun AppNavigation() {
                 val estadoRed by Repositorio.estado.collectAsState()
                 val pendientes by Repositorio.pendientes.collectAsState()
                 val scope = rememberCoroutineScope()
-                LaunchedEffect(Unit) { Repositorio.cargarGranjas() }
+                val contexto = LocalContext.current
+                LaunchedEffect(Unit) {
+                    Repositorio.cargarGranjas()
+                    Repositorio.revisarAlertasCriticas(contexto)
+                }
 
                 DashboardScreen(
                     granjas = Usuarios.granjasVisibles(SesionActual.usuario, todas),
@@ -126,6 +131,7 @@ fun AppNavigation() {
                     },
                     onSalir = {
                         SesionActual.usuario = null
+                        Repositorio.cerrarSesion()
                         navController.navigate(Rutas.LOGIN) {
                             popUpTo(navController.graph.id) { inclusive = true }
                         }
