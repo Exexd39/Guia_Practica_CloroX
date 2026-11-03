@@ -3,7 +3,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from uuid import uuid4
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo # para que lo lea tzdata
 
 app = FastAPI(title="API CloroApp")
 
