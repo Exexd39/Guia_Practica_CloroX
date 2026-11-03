@@ -38,4 +38,7 @@ interface CloroApiService {
     @POST("alertas/{id}/cerrar")
     suspend fun cerrarAlerta(@Path("id") idAlerta: String, @Body datos: CierreRequest): AlertaDto
 
+    @POST("mediciones")
+    suspend fun registrarMedicion(@Body datos: MedicionRequest): RespuestaMedicionDto
+
 }

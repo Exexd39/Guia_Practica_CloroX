@@ -16,11 +16,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import retrofit2.HttpException
 import android.content.SharedPreferences
+import com.example.cloroapp.data.local.PendienteDao
 import com.example.cloroapp.data.model.Alerta
+import com.example.cloroapp.data.model.EstadoCloro
+import com.example.cloroapp.data.model.PendienteEntity
 import com.example.cloroapp.data.model.RegistroAccion
 import com.example.cloroapp.data.model.SesionActual
 import com.example.cloroapp.data.network.AccionRequest
 import com.example.cloroapp.data.network.CierreRequest
+import com.example.cloroapp.data.network.MedicionRequest
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -33,6 +37,12 @@ data class EstadoRed (
     val error: String? = null,
     val ultimaActualizacion: String? = null
 )
+data class ResultadoEnvio(
+    val estado: EstadoCloro?,
+    val hayAlerta: Boolean,
+    val pendiente: Boolean = false
+)
+
 object Repositorio {
     suspend fun login(correo: String, clave: String): Result<Usuario> {
         return try {
@@ -47,6 +57,26 @@ object Repositorio {
         }
     }
 
+    suspend fun registrarMedicion(idPunto: String, nivel: Double): Result<ResultadoEnvio> {
+        return try {
+            val resp = RetrofitClient.apiService
+                .registrarMedicion(MedicionRequest(idPunto, nivel, null))
+            cargarGranjas()
+            val estado = EstadoCloro.entries
+                .firstOrNull { it.name.equals(resp.datos.estado, ignoreCase = true) }
+            Result.success(ResultadoEnvio(estado, resp.alerta != null))
+        } catch (e: HttpException) {
+            Result.failure(Exception(mensajeDe(e)))
+        } catch (e: IOException) {
+            val dao = pendienteDao
+                ?: return Result.failure(Exception("No se pudo guardar la medición en el celular"))
+            val ahora = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+            dao.guardar(PendienteEntity(idPunto = idPunto, nivelCloro = nivel, fechaHora = ahora))
+            actualizarContador()
+            Result.success(ResultadoEnvio(null, false, pendiente = true))
+        }
+    }
+
     private val _granjas = MutableStateFlow<List<Granja>>(emptyList())
     val granjas: StateFlow<List<Granja>> = _granjas
     private var puntoDao: PuntoDao? = null
@@ -58,12 +88,18 @@ object Repositorio {
     private val _alertas = MutableStateFlow<List<Alerta>>(emptyList())
     val alertas: StateFlow<List<Alerta>> = _alertas
 
+    private var pendienteDao: PendienteDao? = null
+    private val _pendientes = MutableStateFlow(0)
+    val pendientes: StateFlow<Int> = _pendientes
+
     private fun registrarError(mensaje: String) {
         _estado.value = _estado.value.copy(cargando = false, error = mensaje)
     }
 
     fun iniciar(context: Context) {
-        puntoDao = AppDatabase.getDatabase(context).puntoDao()
+        val db = AppDatabase.getDatabase(context)
+        puntoDao = db.puntoDao()
+        pendienteDao = db.pendienteDao()
         prefs = context.getSharedPreferences("cloro_prefs", Context.MODE_PRIVATE)
         _estado.value = EstadoRed(ultimaActualizacion = prefs?.getString("ultima_sync", null))
     }
@@ -113,8 +149,28 @@ object Repositorio {
         puntoDao?.guardar(filas)
     }
 
+    private suspend fun actualizarContador() {
+        _pendientes.value = pendienteDao?.obtenerTodas()?.size ?: 0
+    }
+    suspend fun sincronizarPendientes() {
+        val dao = pendienteDao ?: return
+        for (p in dao.obtenerTodas()) {
+            try {
+                RetrofitClient.apiService.registrarMedicion(
+                    MedicionRequest(p.idPunto, p.nivelCloro, p.fechaHora)
+                )
+                dao.borrar(p.id)
+            } catch (e: HttpException) {
+                dao.borrar(p.id)   // el servidor la rechazó: reintentar no sirve
+            } catch (e: IOException) {
+                break              // sigue sin conexión: se intenta otro día
+            }
+        }
+        actualizarContador()
+    }
     suspend fun cargarGranjas(): Result<Unit> {
         _estado.value = _estado.value.copy(cargando = true, error = null)
+        sincronizarPendientes()
 
         if (_granjas.value.isEmpty()) {
             _granjas.value = leerLocal()

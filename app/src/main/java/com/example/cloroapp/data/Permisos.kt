@@ -7,4 +7,5 @@ import com.example.cloroapp.data.model.Rol
 object Permisos {
     fun puedeRegistrarAccion(rol: Rol): Boolean = rol != Rol.JEFATURA
     fun puedeCerrarAlerta(rol: Rol): Boolean = rol == Rol.SUPERVISOR
+    fun puedeRegistrarMedicion(rol: Rol): Boolean = rol != Rol.JEFATURA
 }

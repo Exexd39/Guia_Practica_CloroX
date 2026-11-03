@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.cloroapp.data.EstadoRed
+import com.example.cloroapp.data.Repositorio.pendientes
 import com.example.cloroapp.data.model.EstadoCloro
 import com.example.cloroapp.data.model.Granja
 import com.example.cloroapp.data.model.SesionActual
@@ -46,8 +47,17 @@ fun DashboardScreen(
     estadoRed: EstadoRed = EstadoRed(),
     onReintentar: () -> Unit = {},
     onGranjaClick: (Granja) -> Unit = {},
-    onSalir: () -> Unit = {}
+    onSalir: () -> Unit = {},
+    pendientes: Int = 0
 ) {
+    if (pendientes > 0) {
+        Text(
+            text = "$pendientes medición(es) pendiente(s) de enviar",
+            style = MaterialTheme.typography.bodySmall,
+            color = EstadoAdvertencia
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -144,6 +154,7 @@ fun BannerEstado(estado: EstadoRed, hayDatos: Boolean, onReintentar: () -> Unit)
         estado.cargando -> "Actualizando... (si el servidor estaba dormido, puede tardar un minuto)"
         estado.error != null ->
             if (hayDatos) "${estado.error}. Mostrando datos guardados." else estado.error
+
         estado.ultimaActualizacion != null -> "Última actualización: ${estado.ultimaActualizacion}"
         else -> null
     } ?: return

@@ -60,6 +60,19 @@ data class CierreRequest(
     @SerializedName("id_usuario") val idUsuario: String
 )
 
+data class MedicionRequest(
+    @SerializedName("id_punto") val idPunto: String,
+    @SerializedName("nivel_cloro") val nivelCloro: Double,
+    @SerializedName("fecha_hora") val fechaHora: String?
+)
+
+data class MedicionResultadoDto(val estado: String)
+
+data class RespuestaMedicionDto(
+    val datos: MedicionResultadoDto,
+    val alerta: AlertaDto?
+)
+
 fun AlertaDto.aModelo(tieneAccion: Boolean) = Alerta(
     id = id,
     idPunto = idPunto,

@@ -36,7 +36,13 @@ import com.example.cloroapp.ui.theme.TextoOscuro
 import com.example.cloroapp.ui.theme.TextoSecundario
 
 @Composable
-fun DetallePuntoScreen(granja: Granja, punto: PuntoMedicion, onVolver: () -> Unit) {
+fun DetallePuntoScreen(
+    granja: Granja,
+    punto: PuntoMedicion,
+    onVolver: () -> Unit,
+    puedeRegistrarMedicion: Boolean = false,
+    onRegistrarMedicion: () -> Unit = {}
+) {
     var periodo by remember { mutableStateOf("24h") }
     var historial by remember { mutableStateOf<List<Double>>(emptyList()) }
     var cargando by remember { mutableStateOf(true) }
@@ -82,6 +88,11 @@ fun DetallePuntoScreen(granja: Granja, punto: PuntoMedicion, onVolver: () -> Uni
             style = MaterialTheme.typography.bodyMedium,
             color = punto.estado.color()
         )
+        if (puedeRegistrarMedicion) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(onClick = onRegistrarMedicion) { Text("Registrar medición") }
+        }
+
         Spacer(modifier = Modifier.height(32.dp))
 
         Text(

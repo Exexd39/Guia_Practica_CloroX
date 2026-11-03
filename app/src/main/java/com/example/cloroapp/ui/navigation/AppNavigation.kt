@@ -21,6 +21,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.cloroapp.data.Permisos
 import com.example.cloroapp.data.Repositorio
 import com.example.cloroapp.data.Usuarios
 import com.example.cloroapp.data.model.SesionActual
@@ -29,6 +30,7 @@ import com.example.cloroapp.ui.screen.AlertasScreen
 import com.example.cloroapp.ui.screen.DashboardScreen
 import com.example.cloroapp.ui.screen.DetalleGranjaScreen
 import com.example.cloroapp.ui.screen.DetallePuntoScreen
+import com.example.cloroapp.ui.screen.FormularioMedicionScreen
 import com.example.cloroapp.ui.screen.HistorialScreen
 import com.example.cloroapp.ui.screen.LoginScreen
 import kotlinx.coroutines.launch
@@ -45,6 +47,9 @@ object Rutas {
     fun detalleGranja(id: String) = "granja/$id"
     fun detallePunto(id: String) = "punto/$id"
     fun accion(id: String) = "accion/$id"
+
+    const val FORMULARIO = "medicion/{puntoId}"
+    fun formulario(id: String) = "medicion/$id"
 }
 
 private data class PestanaInferior(
@@ -107,12 +112,14 @@ fun AppNavigation() {
 
             composable(Rutas.DASHBOARD) {
                 val estadoRed by Repositorio.estado.collectAsState()
+                val pendientes by Repositorio.pendientes.collectAsState()
                 val scope = rememberCoroutineScope()
                 LaunchedEffect(Unit) { Repositorio.cargarGranjas() }
 
                 DashboardScreen(
                     granjas = Usuarios.granjasVisibles(SesionActual.usuario, todas),
                     estadoRed = estadoRed,
+                    pendientes = pendientes,
                     onReintentar = { scope.launch { Repositorio.cargarGranjas() } },
                     onGranjaClick = { granja ->
                         navController.navigate(Rutas.detalleGranja(granja.id))
@@ -167,7 +174,11 @@ fun AppNavigation() {
                     DetallePuntoScreen(
                         granja = encontrado.first,
                         punto = encontrado.second,
-                        onVolver = { navController.popBackStack() }
+                        onVolver = { navController.popBackStack() },
+                        puedeRegistrarMedicion = Permisos.puedeRegistrarMedicion(SesionActual.rol),
+                        onRegistrarMedicion = {
+                            navController.navigate(Rutas.formulario(encontrado.second.id))
+                        }
                     )
                 }
             }
@@ -177,6 +188,18 @@ fun AppNavigation() {
                 val encontrado = puntoId?.let { Repositorio.buscarPunto(it, todas) }
                 if (encontrado != null) {
                     AccionScreen(
+                        granja = encontrado.first,
+                        punto = encontrado.second,
+                        onVolver = { navController.popBackStack() }
+                    )
+                }
+            }
+
+            composable(Rutas.FORMULARIO) { entrada ->
+                val puntoId = entrada.arguments?.getString("puntoId")
+                val encontrado = puntoId?.let { Repositorio.buscarPunto(it, todas) }
+                if (encontrado != null) {
+                    FormularioMedicionScreen(
                         granja = encontrado.first,
                         punto = encontrado.second,
                         onVolver = { navController.popBackStack() }
