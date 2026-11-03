@@ -5,6 +5,8 @@ from uuid import uuid4
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo # para que lo lea tzdata
 
+
+
 app = FastAPI(title="API CloroApp")
 
 # Rango de ppm, formato de fecha
