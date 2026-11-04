@@ -29,12 +29,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.cloroapp.data.RegistroAcciones
 import com.example.cloroapp.data.Repositorio
 import com.example.cloroapp.data.model.Granja
 import com.example.cloroapp.data.model.PuntoMedicion
 import com.example.cloroapp.data.model.RegistroAccion
-import com.example.cloroapp.data.model.SesionActual
 import com.example.cloroapp.ui.theme.AzulPrincipal
 import com.example.cloroapp.ui.theme.Blanco
 import com.example.cloroapp.ui.theme.EstadoAdvertencia
@@ -43,9 +41,6 @@ import com.example.cloroapp.ui.theme.FondoClaro
 import com.example.cloroapp.ui.theme.TextoOscuro
 import com.example.cloroapp.ui.theme.TextoSecundario
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 private val tiposAccion = listOf(
     "Ajuste de dosificación",
