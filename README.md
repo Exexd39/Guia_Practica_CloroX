@@ -149,6 +149,7 @@ Códigos de error usados: `401` credenciales incorrectas, `403` sin permiso, `40
 - El historial sin conexión solo está disponible para los períodos ya consultados durante la sesión.
 - Las mediciones pendientes se envían al abrir el dashboard o al actualizar; la revisión automática de alertas críticas se ejecuta cada 15 minutos como mínimo, según lo permite Android.
 - No incluye integración con AMINO ni ERP, notificaciones push reales, exportación a PDF/Excel ni escalamiento automático de alertas (previstos como evolución futura en el caso).
+- Cuando se accede hacia alguna alerta desde notificaciones aparecera la pantalla de Login, tambien llegan otras notificaciones de otros usuarios.
 
 ## Autores
 
