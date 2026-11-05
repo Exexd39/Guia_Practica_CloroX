@@ -1,5 +1,10 @@
 package com.example.cloroapp.ui.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -11,13 +16,10 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -34,7 +36,6 @@ import com.example.cloroapp.ui.screen.DetallePuntoScreen
 import com.example.cloroapp.ui.screen.FormularioMedicionScreen
 import com.example.cloroapp.ui.screen.HistorialScreen
 import com.example.cloroapp.ui.screen.LoginScreen
-import kotlinx.coroutines.launch
 
 object Rutas {
     const val LOGIN = "login"
@@ -97,7 +98,11 @@ fun AppNavigation() {
         NavHost(
             navController = navController,
             startDestination = Rutas.LOGIN,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
+            enterTransition = { slideInHorizontally(initialOffsetX = { it / 4 }) + fadeIn(tween(250)) },
+            exitTransition = { fadeOut(tween(150)) },
+            popEnterTransition = { fadeIn(tween(250)) },
+            popExitTransition = { slideOutHorizontally(targetOffsetX = { it / 4 }) + fadeOut(tween(200)) }
         ) {
 
             composable(Rutas.LOGIN) {
@@ -112,26 +117,11 @@ fun AppNavigation() {
             }
 
             composable(Rutas.DASHBOARD) {
-                val estadoRed by Repositorio.estado.collectAsState()
-                val pendientes by Repositorio.pendientes.collectAsState()
-                val scope = rememberCoroutineScope()
-                val contexto = LocalContext.current
-                LaunchedEffect(Unit) {
-                    Repositorio.cargarGranjas()
-                    Repositorio.revisarAlertasCriticas(contexto)
-                }
-
                 DashboardScreen(
-                    granjas = Usuarios.granjasVisibles(SesionActual.usuario, todas),
-                    estadoRed = estadoRed,
-                    pendientes = pendientes,
-                    onReintentar = { scope.launch { Repositorio.cargarGranjas() } },
                     onGranjaClick = { granja ->
                         navController.navigate(Rutas.detalleGranja(granja.id))
                     },
                     onSalir = {
-                        SesionActual.usuario = null
-                        Repositorio.cerrarSesion()
                         navController.navigate(Rutas.LOGIN) {
                             popUpTo(navController.graph.id) { inclusive = true }
                         }
