@@ -1,7 +1,15 @@
 package com.example.cloroapp.ui.screen
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,30 +17,45 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.cloroapp.data.Repositorio
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.cloroapp.data.Evidencias
 import com.example.cloroapp.data.model.Granja
 import com.example.cloroapp.data.model.PuntoMedicion
-import com.example.cloroapp.data.model.RegistroAccion
+import com.example.cloroapp.ui.components.CampoValidado
 import com.example.cloroapp.ui.theme.AzulPrincipal
 import com.example.cloroapp.ui.theme.Blanco
 import com.example.cloroapp.ui.theme.EstadoAdvertencia
@@ -40,37 +63,55 @@ import com.example.cloroapp.ui.theme.EstadoNormal
 import com.example.cloroapp.ui.theme.FondoClaro
 import com.example.cloroapp.ui.theme.TextoOscuro
 import com.example.cloroapp.ui.theme.TextoSecundario
-import kotlinx.coroutines.launch
-
-private val tiposAccion = listOf(
-    "Ajuste de dosificación",
-    "Revisión de equipo",
-    "Limpieza de red",
-    "Otra"
-)
+import com.example.cloroapp.ui.viewmodel.AccionViewModel
+import com.example.cloroapp.ui.viewmodel.TIPOS_ACCION
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
 
 @Composable
 fun AccionScreen(
     granja: Granja,
     punto: PuntoMedicion,
-    onVolver: () -> Unit
+    onVolver: () -> Unit,
+    vm: AccionViewModel = viewModel()
 ) {
-    var tipoSeleccionado by remember { mutableStateOf(tiposAccion.first()) }
-    var observaciones by remember { mutableStateOf("") }
-    var guardado by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    var historial by remember { mutableStateOf<List<RegistroAccion>>(emptyList()) }
-    var mensaje by remember { mutableStateOf<String?>(null) }
-    var enviando by remember { mutableStateOf(false) }
+    val estado by vm.estado.collectAsState()
+    val contexto = LocalContext.current
+    val appContext = contexto.applicationContext
 
     LaunchedEffect(punto.id) {
-        Repositorio.cargarAcciones(punto.id).onSuccess { historial = it }
+        vm.cargarHistorial(punto.id)
+        vm.cargarEvidencias(appContext, punto.id)
+    }
+
+    // En camara: devuelve una imagen en miniatura
+    val camara = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) vm.guardarEvidencia(appContext, punto.id, bitmap)
+    }
+
+    // Permiso de camara en tiempo de ejecucion: si lo conceden, se abre la cámara
+    val pedirPermisoCamara = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { concedido ->
+        if (concedido) camara.launch(null)
+        else vm.avisarEvidencia("Permiso de cámara denegado. Puedes elegir una foto de la galería.")
+    }
+
+    // Galeria con el selector del sistema, no requiere ningún permiso
+    val galeria = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) vm.guardarEvidenciaDesdeUri(appContext, punto.id, uri)
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(FondoClaro)
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         TextButton(onClick = onVolver) {
@@ -117,57 +158,94 @@ fun AccionScreen(
             style = MaterialTheme.typography.titleMedium,
             color = TextoOscuro
         )
-        tiposAccion.forEach { tipo ->
+        TIPOS_ACCION.forEach { tipo ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 RadioButton(
-                    selected = tipo == tipoSeleccionado,
-                    onClick = { tipoSeleccionado = tipo }
+                    selected = tipo == estado.tipo,
+                    onClick = { vm.onTipoChange(tipo) }
                 )
                 Text(text = tipo, color = TextoOscuro)
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
-            value = observaciones,
-            onValueChange = { observaciones = it },
-            label = { Text("Observaciones") },
-            modifier = Modifier.fillMaxWidth()
+        CampoValidado(
+            valor = estado.observaciones,
+            onCambio = vm::onObservacionesChange,
+            etiqueta = "Observaciones",
+            error = estado.errorObservaciones,
+            unaLinea = false
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            onClick = {
-                if (observaciones.trim().length < 3) {
-                    guardado = false
-                    mensaje = "Escribe al menos 3 caracteres en las observaciones"
-                } else {
-                    scope.launch {
-                        enviando = true
-                        Repositorio.registrarAccion(punto.id, tipoSeleccionado, observaciones.trim())
-                            .onSuccess {
-                                observaciones = ""
-                                guardado = true
-                                mensaje = null
-                                Repositorio.cargarAcciones(punto.id).onSuccess { historial = it }
-                            }
-                            .onFailure {
-                                guardado = false
-                                mensaje = it.message
-                            }
-                        enviando = false
-                    }
+        // ---------- Evidencia fotografica ----------
+        Text(
+            text = "Evidencia fotográfica (opcional)",
+            style = MaterialTheme.typography.titleMedium,
+            color = TextoOscuro
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = {
+                val tienePermiso = ContextCompat.checkSelfPermission(
+                    contexto, Manifest.permission.CAMERA
+                ) == PackageManager.PERMISSION_GRANTED
+                if (tienePermiso) camara.launch(null)
+                else pedirPermisoCamara.launch(Manifest.permission.CAMERA)
+            }) {
+                Text("Tomar foto")
+            }
+            OutlinedButton(onClick = {
+                galeria.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            }) {
+                Text("Galería")
+            }
+        }
+        Text(
+            text = "Las fotos se guardan solo en este celular.",
+            style = MaterialTheme.typography.bodySmall,
+            color = TextoSecundario
+        )
+
+        estado.mensajeEvidencia?.let {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (it.startsWith("✓")) EstadoNormal else EstadoAdvertencia
+            )
+        }
+
+        if (estado.evidencias.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyRow(
+                modifier = Modifier.height(96.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(estado.evidencias, key = { it.absolutePath }) { archivo ->
+                    MiniaturaEvidencia(
+                        archivo = archivo,
+                        onEliminar = { vm.eliminarEvidencia(appContext, punto.id, archivo) }
+                    )
                 }
-            },
-            enabled = !enviando,
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = { vm.guardar(punto.id) },
+            enabled = !estado.enviando,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (enviando) "Guardando..." else "Guardar acción")
+            Text(if (estado.enviando) "Guardando..." else "Guardar acción")
         }
-        mensaje?.let {
+
+        estado.errorGeneral?.let {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = it,
@@ -176,7 +254,7 @@ fun AccionScreen(
             )
         }
 
-        if (guardado) {
+        if (estado.guardado) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "✓ Acción guardada",
@@ -194,7 +272,7 @@ fun AccionScreen(
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        if (historial.isEmpty()) {
+        if (estado.historial.isEmpty()) {
             Text(
                 text = "Aún no hay acciones registradas",
                 style = MaterialTheme.typography.bodyMedium,
@@ -202,8 +280,8 @@ fun AccionScreen(
             )
         }
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(historial) { accion ->
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            estado.historial.forEach { accion ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = Blanco)
@@ -229,6 +307,45 @@ fun AccionScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+// Miniatura con bordes redondeados y recorte para que llene el cuadrado
+@Composable
+private fun MiniaturaEvidencia(archivo: File, onEliminar: () -> Unit) {
+    val imagen by produceState<ImageBitmap?>(initialValue = null, key1 = archivo) {
+        value = withContext(Dispatchers.IO) {
+            Evidencias.miniatura(archivo)?.asImageBitmap()
+        }
+    }
+
+    Box(modifier = Modifier.size(96.dp)) {
+        imagen?.let {
+            Image(
+                bitmap = it,
+                contentDescription = "Foto de evidencia",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(1.dp, TextoSecundario, RoundedCornerShape(12.dp))
+            )
+        }
+        IconButton(
+            onClick = onEliminar,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(4.dp)
+                .size(24.dp)
+                .background(Color.Black.copy(alpha = 0.55f), CircleShape)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = "Quitar foto",
+                tint = Color.White,
+                modifier = Modifier.size(14.dp)
+            )
         }
     }
 }

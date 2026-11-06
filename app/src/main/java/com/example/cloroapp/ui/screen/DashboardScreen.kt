@@ -1,7 +1,14 @@
 package com.example.cloroapp.ui.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,17 +25,22 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.cloroapp.data.EstadoRed
-import com.example.cloroapp.data.Repositorio.pendientes
 import com.example.cloroapp.data.model.EstadoCloro
 import com.example.cloroapp.data.model.Granja
 import com.example.cloroapp.data.model.SesionActual
@@ -40,24 +52,21 @@ import com.example.cloroapp.ui.theme.EstadoNormal
 import com.example.cloroapp.ui.theme.FondoClaro
 import com.example.cloroapp.ui.theme.TextoOscuro
 import com.example.cloroapp.ui.theme.TextoSecundario
+import com.example.cloroapp.ui.viewmodel.DashboardViewModel
 
 @Composable
 fun DashboardScreen(
-    granjas: List<Granja>,
-    estadoRed: EstadoRed = EstadoRed(),
-    onReintentar: () -> Unit = {},
     onGranjaClick: (Granja) -> Unit = {},
     onSalir: () -> Unit = {},
-    pendientes: Int = 0
+    vm: DashboardViewModel = viewModel()
 ) {
-    if (pendientes > 0) {
-        Text(
-            text = "$pendientes medición(es) pendiente(s) de enviar",
-            style = MaterialTheme.typography.bodySmall,
-            color = EstadoAdvertencia
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-    }
+    val granjas by vm.granjas.collectAsState()
+    val estadoRed by vm.estadoRed.collectAsState()
+    val pendientes by vm.pendientes.collectAsState()
+    val contexto = LocalContext.current.applicationContext
+
+    LaunchedEffect(Unit) { vm.cargar(contexto) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -74,7 +83,10 @@ fun DashboardScreen(
                 color = TextoOscuro,
                 modifier = Modifier.weight(1f)
             )
-            TextButton(onClick = onSalir) {
+            TextButton(onClick = {
+                vm.cerrarSesion()
+                onSalir()
+            }) {
                 Text("Salir", color = AzulPrincipal)
             }
         }
@@ -85,7 +97,22 @@ fun DashboardScreen(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        BannerEstado(estadoRed, hayDatos = granjas.isNotEmpty(), onReintentar = onReintentar)
+        BannerEstado(estadoRed, hayDatos = granjas.isNotEmpty(), onReintentar = vm::reintentar)
+
+        AnimatedVisibility(
+            visible = pendientes > 0,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Column {
+                Text(
+                    text = "$pendientes medición(es) pendiente(s) de enviar",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EstadoAdvertencia
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
 
         if (granjas.isEmpty() && !estadoRed.cargando) {
             Text(
@@ -98,19 +125,29 @@ fun DashboardScreen(
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(granjas) { granja ->
-                GranjaCard(granja = granja, onClick = { onGranjaClick(granja) })
+            items(granjas, key = { it.id }) { granja ->
+                GranjaCard(
+                    granja = granja,
+                    onClick = { onGranjaClick(granja) },
+                    modifier = Modifier.animateItem()
+                )
             }
         }
     }
 }
 
 @Composable
-fun GranjaCard(granja: Granja, onClick: () -> Unit) {
+fun GranjaCard(granja: Granja, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val estado = granja.estadoGeneral
+    // El color cambia con una transición suave cuando cambia el estado de la granja
+    val colorEstado by animateColorAsState(
+        targetValue = estado.color(),
+        animationSpec = tween(durationMillis = 500),
+        label = "colorEstadoGranja"
+    )
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Blanco),
         onClick = onClick
     ) {
@@ -122,7 +159,7 @@ fun GranjaCard(granja: Granja, onClick: () -> Unit) {
                 modifier = Modifier
                     .size(14.dp)
                     .clip(CircleShape)
-                    .background(estado.color())
+                    .background(colorEstado)
             )
             Spacer(modifier = Modifier.width(12.dp))
 
@@ -142,7 +179,7 @@ fun GranjaCard(granja: Granja, onClick: () -> Unit) {
             Text(
                 text = estado.texto(),
                 style = MaterialTheme.typography.labelLarge,
-                color = estado.color()
+                color = colorEstado
             )
         }
     }
@@ -161,19 +198,34 @@ fun BannerEstado(estado: EstadoRed, hayDatos: Boolean, onReintentar: () -> Unit)
 
     val hayError = estado.error != null && !estado.cargando
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = mensaje,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (hayError) EstadoAdvertencia else TextoSecundario,
-            modifier = Modifier.weight(1f)
-        )
-        if (!estado.cargando) {
-            TextButton(onClick = onReintentar) {
-                Text(if (hayError) "Reintentar" else "Actualizar", color = AzulPrincipal)
+    // Cuando cambia el mensaje, el texto anterior se desvanece y aparece el nuevo
+    Crossfade(
+        targetState = mensaje,
+        animationSpec = tween(durationMillis = 300),
+        label = "bannerEstado"
+    ) { texto ->
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (estado.cargando) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = AzulPrincipal
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Text(
+                text = texto,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (hayError) EstadoAdvertencia else TextoSecundario,
+                modifier = Modifier.weight(1f)
+            )
+            if (!estado.cargando) {
+                TextButton(onClick = onReintentar) {
+                    Text(if (hayError) "Reintentar" else "Actualizar", color = AzulPrincipal)
+                }
             }
         }
     }

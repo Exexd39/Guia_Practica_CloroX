@@ -8,40 +8,33 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.example.cloroapp.data.Repositorio
-import com.example.cloroapp.data.Usuarios
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.cloroapp.data.model.Usuario
+import com.example.cloroapp.ui.components.CampoValidado
 import com.example.cloroapp.ui.theme.AzulPrincipal
 import com.example.cloroapp.ui.theme.Blanco
 import com.example.cloroapp.ui.theme.EstadoCritico
 import com.example.cloroapp.ui.theme.FondoClaro
 import com.example.cloroapp.ui.theme.TextoSecundario
-import kotlinx.coroutines.launch
+import com.example.cloroapp.ui.viewmodel.LoginViewModel
 
 @Composable
-fun LoginScreen(onIngresar: (Usuario) -> Unit) {
-    var correo by remember { mutableStateOf("") }
-    var clave by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
-    var cargando by remember { mutableStateOf(false) }
+fun LoginScreen(
+    onIngresar: (Usuario) -> Unit,
+    vm: LoginViewModel = viewModel()
+) {
+    val estado by vm.estado.collectAsState()
 
     Column(
         modifier = Modifier
@@ -63,33 +56,25 @@ fun LoginScreen(onIngresar: (Usuario) -> Unit) {
         )
         Spacer(modifier = Modifier.height(32.dp))
 
-        OutlinedTextField(
-            value = correo,
-            onValueChange = {
-                correo = it
-                error = null
-            },
-            label = { Text("Correo") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth()
+        CampoValidado(
+            valor = estado.correo,
+            onCambio = vm::onCorreoChange,
+            etiqueta = "Correo",
+            error = estado.errorCorreo,
+            teclado = KeyboardType.Email
         )
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
-            value = clave,
-            onValueChange = {
-                clave = it
-                error = null
-            },
-            label = { Text("Contraseña") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth()
+        CampoValidado(
+            valor = estado.clave,
+            onCambio = vm::onClaveChange,
+            etiqueta = "Contraseña",
+            error = estado.errorClave,
+            teclado = KeyboardType.Password,
+            esClave = true
         )
 
-        error?.let {
+        estado.errorGeneral?.let {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = it,
@@ -101,22 +86,13 @@ fun LoginScreen(onIngresar: (Usuario) -> Unit) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = {
-                scope.launch {
-                    cargando = true
-                    Repositorio.login(correo, clave)
-                        .onSuccess { onIngresar(it) }
-                        .onFailure { error = it.message }
-                    cargando = false
-                }
-            },
-            enabled = !cargando,
+            onClick = { vm.ingresar(onIngresar) },
+            enabled = !estado.cargando,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = AzulPrincipal)
         ) {
-            Text(if (cargando) "Conectando..." else "Ingresar", color = Blanco)
+            Text(if (estado.cargando) "Conectando..." else "Ingresar", color = Blanco)
         }
-
 
         Spacer(modifier = Modifier.height(24.dp))
 
