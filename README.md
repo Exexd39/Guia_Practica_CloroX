@@ -16,6 +16,9 @@ Proyecto académico del caso **"Medición de cloro en línea"** (DSY1105 · Desa
 - **Inicio de sesión simulado** con tres perfiles.
 - **Cámara** Evidencia fotográfica en las acciones correctivas, con cámara (permiso CAMERA en tiempo de ejecución), galería (Photo Picker) y almacenamiento interno privado.
 
+## Trello
+Se hizo una lista de tareas en trello: *https://trello.com/invite/b/6aec1453a32776e45a9f1849/ATTIf2b3483ffbcc43fe057bffbdb60686a775EAA94E/cloroapp*
+
 ## Roles
 
 | Rol | Qué puede hacer |
