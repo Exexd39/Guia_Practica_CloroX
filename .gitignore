@@ -3,6 +3,10 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
+# Maven (usuario-service y medicion-service)
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
 # Local configuration
 local.properties
 
