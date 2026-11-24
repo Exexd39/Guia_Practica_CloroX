@@ -36,6 +36,8 @@ import com.example.cloroapp.ui.screen.DetallePuntoScreen
 import com.example.cloroapp.ui.screen.FormularioMedicionScreen
 import com.example.cloroapp.ui.screen.HistorialScreen
 import com.example.cloroapp.ui.screen.LoginScreen
+import androidx.compose.material.icons.filled.Cloud
+import com.example.cloroapp.ui.screen.ClimaScreen
 
 object Rutas {
     const val LOGIN = "login"
@@ -45,6 +47,7 @@ object Rutas {
     const val DETALLE_GRANJA = "granja/{granjaId}"
     const val DETALLE_PUNTO = "punto/{puntoId}"
     const val ACCION = "accion/{puntoId}"
+    const val CLIMA = "clima"
 
     fun detalleGranja(id: String) = "granja/$id"
     fun detallePunto(id: String) = "punto/$id"
@@ -63,7 +66,8 @@ private data class PestanaInferior(
 private val pestanas = listOf(
     PestanaInferior(Rutas.DASHBOARD, "Granjas", Icons.Default.Home),
     PestanaInferior(Rutas.ALERTAS, "Alertas", Icons.Default.Warning),
-    PestanaInferior(Rutas.HISTORIAL, "Historial", Icons.AutoMirrored.Filled.List)
+    PestanaInferior(Rutas.HISTORIAL, "Historial", Icons.AutoMirrored.Filled.List),
+    PestanaInferior(Rutas.CLIMA, "Clima", Icons.Default.Cloud)
 )
 
 @Composable
@@ -201,6 +205,9 @@ fun AppNavigation() {
                         onVolver = { navController.popBackStack() }
                     )
                 }
+            }
+            composable(Rutas.CLIMA) {
+                ClimaScreen(granjas = Usuarios.granjasVisibles(SesionActual.usuario, todas))
             }
         }
     }
