@@ -94,13 +94,17 @@ public class MedicionService {
         if (!puntos.existsById(idPunto)) {
             throw new ApiException(404, "El punto de medición no existe");
         }
-        Long horas = periodo == null ? null : PERIODOS.get(periodo.toLowerCase(Locale.ROOT));
-        if (horas == null) {
-            throw new ApiException(422, "Período inválido: use 24h, 7d o 30d");
+        LocalDateTime desde = null;
+        if (periodo != null && !periodo.isBlank()) {
+            Long horas = PERIODOS.get(periodo.toLowerCase(Locale.ROOT));
+            if (horas == null) {
+                throw new ApiException(422, "Período inválido: use 24h, 7d o 30d");
+            }
+            desde = LocalDateTime.now(CHILE).minusHours(horas);
         }
-        LocalDateTime desde = LocalDateTime.now(CHILE).minusHours(horas);
+        final LocalDateTime desdeFinal = desde;
         return mediciones.findByIdPuntoOrderByFechaHoraAsc(idPunto).stream()
-                .filter(m -> !m.getFechaHora().isBefore(desde))
+                .filter(m -> desdeFinal == null || !m.getFechaHora().isBefore(desdeFinal))
                 .toList();
     }
 }
