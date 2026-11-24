@@ -3,6 +3,7 @@ C:\Users\nicom\Desktop\Guia_Practica_CloroX\usuario-service\src\main\java\cloroa
 C:\Users\nicom\Desktop\Guia_Practica_CloroX\usuario-service\src\main\java\cloroapp\usuario\controller\UsuarioController.java
 C:\Users\nicom\Desktop\Guia_Practica_CloroX\usuario-service\src\main\java\cloroapp\usuario\dto\LoginRequest.java
 C:\Users\nicom\Desktop\Guia_Practica_CloroX\usuario-service\src\main\java\cloroapp\usuario\dto\UsuarioDto.java
+C:\Users\nicom\Desktop\Guia_Practica_CloroX\usuario-service\src\main\java\cloroapp\usuario\dto\UsuarioRequest.java
 C:\Users\nicom\Desktop\Guia_Practica_CloroX\usuario-service\src\main\java\cloroapp\usuario\model\Rol.java
 C:\Users\nicom\Desktop\Guia_Practica_CloroX\usuario-service\src\main\java\cloroapp\usuario\model\Usuario.java
 C:\Users\nicom\Desktop\Guia_Practica_CloroX\usuario-service\src\main\java\cloroapp\usuario\repository\UsuarioRepository.java

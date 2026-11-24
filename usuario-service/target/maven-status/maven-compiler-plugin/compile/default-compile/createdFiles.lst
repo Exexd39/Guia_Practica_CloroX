@@ -3,6 +3,7 @@ cloroapp\usuario\dto\LoginRequest.class
 cloroapp\usuario\model\Usuario.class
 cloroapp\usuario\config\CargaInicial.class
 cloroapp\usuario\controller\ManejadorErrores.class
+cloroapp\usuario\dto\UsuarioRequest.class
 cloroapp\usuario\model\Rol.class
 cloroapp\usuario\service\UsuarioService.class
 cloroapp\usuario\repository\UsuarioRepository.class
