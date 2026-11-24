@@ -36,6 +36,9 @@ import com.example.cloroapp.ui.screen.DetallePuntoScreen
 import com.example.cloroapp.ui.screen.FormularioMedicionScreen
 import com.example.cloroapp.ui.screen.HistorialScreen
 import com.example.cloroapp.ui.screen.LoginScreen
+import androidx.compose.material.icons.filled.Person
+import com.example.cloroapp.data.model.Rol
+import com.example.cloroapp.ui.screen.UsuariosAdminScreen
 
 object Rutas {
     const val LOGIN = "login"
@@ -45,6 +48,8 @@ object Rutas {
     const val DETALLE_GRANJA = "granja/{granjaId}"
     const val DETALLE_PUNTO = "punto/{puntoId}"
     const val ACCION = "accion/{puntoId}"
+
+    const val USUARIOS = "usuarios"
 
     fun detalleGranja(id: String) = "granja/$id"
     fun detallePunto(id: String) = "punto/$id"
@@ -64,7 +69,14 @@ private val pestanas = listOf(
     PestanaInferior(Rutas.DASHBOARD, "Granjas", Icons.Default.Home),
     PestanaInferior(Rutas.ALERTAS, "Alertas", Icons.Default.Warning),
     PestanaInferior(Rutas.HISTORIAL, "Historial", Icons.AutoMirrored.Filled.List)
+
 )
+private fun pestanasParaRol(): List<PestanaInferior> =
+    if (SesionActual.rol == Rol.JEFATURA) {
+        pestanas + PestanaInferior(Rutas.USUARIOS, "Usuarios", Icons.Default.Person)
+    } else {
+        pestanas
+    }
 
 @Composable
 fun AppNavigation() {
@@ -72,12 +84,13 @@ fun AppNavigation() {
     val entradaActual by navController.currentBackStackEntryAsState()
     val rutaActual = entradaActual?.destination?.route
     val todas by Repositorio.granjas.collectAsState()
+    val visibles = pestanasParaRol()
 
     Scaffold(
         bottomBar = {
-            if (pestanas.any { it.ruta == rutaActual }) {
+            if (visibles.any { it.ruta == rutaActual }) {
                 NavigationBar {
-                    pestanas.forEach { pestana ->
+                    visibles.forEach { pestana ->
                         NavigationBarItem(
                             selected = rutaActual == pestana.ruta,
                             onClick = {
@@ -201,6 +214,9 @@ fun AppNavigation() {
                         onVolver = { navController.popBackStack() }
                     )
                 }
+            }
+            composable(Rutas.USUARIOS) {
+                UsuariosAdminScreen(onVolver = { navController.popBackStack() })
             }
         }
     }
