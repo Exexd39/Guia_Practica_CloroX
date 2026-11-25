@@ -36,9 +36,8 @@ import com.example.cloroapp.ui.screen.DetallePuntoScreen
 import com.example.cloroapp.ui.screen.FormularioMedicionScreen
 import com.example.cloroapp.ui.screen.HistorialScreen
 import com.example.cloroapp.ui.screen.LoginScreen
-import androidx.compose.material.icons.filled.Person
-import com.example.cloroapp.data.model.Rol
-import com.example.cloroapp.ui.screen.UsuariosAdminScreen
+import androidx.compose.material.icons.filled.Cloud
+import com.example.cloroapp.ui.screen.ClimaScreen
 
 object Rutas {
     const val LOGIN = "login"
@@ -48,8 +47,7 @@ object Rutas {
     const val DETALLE_GRANJA = "granja/{granjaId}"
     const val DETALLE_PUNTO = "punto/{puntoId}"
     const val ACCION = "accion/{puntoId}"
-
-    const val USUARIOS = "usuarios"
+    const val CLIMA = "clima"
 
     fun detalleGranja(id: String) = "granja/$id"
     fun detallePunto(id: String) = "punto/$id"
@@ -68,15 +66,9 @@ private data class PestanaInferior(
 private val pestanas = listOf(
     PestanaInferior(Rutas.DASHBOARD, "Granjas", Icons.Default.Home),
     PestanaInferior(Rutas.ALERTAS, "Alertas", Icons.Default.Warning),
-    PestanaInferior(Rutas.HISTORIAL, "Historial", Icons.AutoMirrored.Filled.List)
-
+    PestanaInferior(Rutas.HISTORIAL, "Historial", Icons.AutoMirrored.Filled.List),
+    PestanaInferior(Rutas.CLIMA, "Clima", Icons.Default.Cloud)
 )
-private fun pestanasParaRol(): List<PestanaInferior> =
-    if (SesionActual.rol == Rol.JEFATURA) {
-        pestanas + PestanaInferior(Rutas.USUARIOS, "Usuarios", Icons.Default.Person)
-    } else {
-        pestanas
-    }
 
 @Composable
 fun AppNavigation() {
@@ -84,13 +76,12 @@ fun AppNavigation() {
     val entradaActual by navController.currentBackStackEntryAsState()
     val rutaActual = entradaActual?.destination?.route
     val todas by Repositorio.granjas.collectAsState()
-    val visibles = pestanasParaRol()
 
     Scaffold(
         bottomBar = {
-            if (visibles.any { it.ruta == rutaActual }) {
+            if (pestanas.any { it.ruta == rutaActual }) {
                 NavigationBar {
-                    visibles.forEach { pestana ->
+                    pestanas.forEach { pestana ->
                         NavigationBarItem(
                             selected = rutaActual == pestana.ruta,
                             onClick = {
@@ -215,8 +206,8 @@ fun AppNavigation() {
                     )
                 }
             }
-            composable(Rutas.USUARIOS) {
-                UsuariosAdminScreen(onVolver = { navController.popBackStack() })
+            composable(Rutas.CLIMA) {
+                ClimaScreen(granjas = Usuarios.granjasVisibles(SesionActual.usuario, todas))
             }
         }
     }
