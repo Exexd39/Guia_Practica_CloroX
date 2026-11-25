@@ -21,6 +21,7 @@ import com.example.cloroapp.data.usuarios.UsuarioRequest
 import com.example.cloroapp.ui.viewmodel.UsuariosAdminViewModel
 import com.example.cloroapp.ui.viewmodel.Validaciones
 import androidx.compose.ui.Alignment
+import com.example.cloroapp.ui.viewmodel.ValidacionUsuario
 
 private val ROLES = listOf("OPERARIO", "SUPERVISOR", "JEFATURA")
 private val GRANJAS = listOf("g1", "g2", "g3")
@@ -204,9 +205,9 @@ private fun FormularioUsuario(
             TextButton(
                 enabled = !cargando,
                 onClick = {
-                    errorNombre = if (nombre.isBlank()) "Ingresa el nombre" else null
+                    errorNombre = ValidacionUsuario.nombre(nombre)
                     errorCorreo = Validaciones.correo(correo)
-                    errorClave = if (esNuevo && clave.isBlank()) "La clave es obligatoria" else null
+                    errorClave = ValidacionUsuario.clave(clave, esNuevo)
 
                     if (errorNombre == null && errorCorreo == null && errorClave == null) {
                         onGuardar(
